@@ -12,25 +12,24 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import type { Market } from '@/types';
 
-// IMPORTANT: Imported getMarkets to fetch real database data
 import { deposit, placeBet, getMarkets } from '@/lib/api';
 
 type PageType = 'markets' | 'admin' | 'profile' | 'leaderboard';
 
 function AppContent() {
-  const { user, isAuthenticated, updateBalance, refreshUser } = useUser();
+  const { user, isAuthenticated, refreshUser } = useUser();
   
   // State
   const [currentPage, setCurrentPage] = useState<PageType>('markets');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false); // <-- NEW: Controls the login screen overlay
   
-  // START WITH AN EMPTY ARRAY, NO MORE MOCK DATA
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
 
-// FETCH REAL MARKETS FROM THE DATABASE (With Auto-Refresh!)
+  // FETCH REAL MARKETS: Now fetches for EVERYONE (removed isAuthenticated check)
   useEffect(() => {
-    if (isAuthenticated && !showOnboarding) {
+    if (!showOnboarding) {
       const loadMarkets = async () => {
         try {
           const realMarkets = await getMarkets();
@@ -40,24 +39,19 @@ function AppContent() {
         }
       };
       
-      loadMarkets(); // Fetch immediately on load
-      
-      // THE FIX: Silently fetch fresh market data every 5 seconds
+      loadMarkets(); 
       const pollInterval = setInterval(loadMarkets, 5000); 
-      
-      // Cleanup the timer if the user leaves the app
       return () => clearInterval(pollInterval); 
     }
-  }, [isAuthenticated, showOnboarding, currentPage]);
+  }, [showOnboarding]);
 
-  // Handle sign in
   const handleSignIn = (isNewUser: boolean) => {
+    setShowSignIn(false); // Close the sign-in view when done
     if (isNewUser) {
       setShowOnboarding(true);
     }
   };
 
-  // Handle onboarding complete
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     toast.success('Welcome to UniStake!', {
@@ -65,19 +59,14 @@ function AppContent() {
     });
   };
 
-// --- UPDATED: HANDLE DEPOSIT (No Local Math) ---
   const handleDeposit = useCallback(async (phoneNumber: string, amount: number) => {
     if (!user) return;
-    
     try {
       const result = await deposit(user.email, amount, phoneNumber);
-      
       if (result.success) {
         toast.success(`Successfully deposited Ksh ${amount}`, {
           icon: <CheckCircle2 className="h-4 w-4 text-neon-green" />,
         });
-        
-        // NO LOCAL MATH! We force the app to quietly grab the new true balance from the database.
         await refreshUser();
       } else {
         throw new Error(result.message);
@@ -90,15 +79,15 @@ function AppContent() {
     }
   }, [user, refreshUser]);
 
-
-  // --- UPDATED: HANDLE PLACE BET (No Local Math) ---
   const handlePlaceBet = useCallback(async (marketId: string, option: 'A' | 'B', amount: number) => {
-    if (!user) return;
+    if (!user) {
+      // THE BOUNCER: If guest tries to place a bet, show the sign-in screen!
+      setShowSignIn(true);
+      return;
+    }
     
     try {
       await placeBet(user.email, marketId, option, amount);
-      
-      // Update market pools locally for immediate UI bar movement
       setMarkets(prev => prev.map(market => {
         if (market.id === marketId) {
           return {
@@ -114,8 +103,6 @@ function AppContent() {
       toast.success('Bet placed successfully!', {
         icon: <CheckCircle2 className="h-4 w-4 text-neon-green" />,
       });
-      
-      // NO LOCAL MATH! We force the app to quietly grab the new true balance from the database.
       await refreshUser();
     } catch (error) {
       toast.error('Failed to place bet', {
@@ -125,57 +112,38 @@ function AppContent() {
     }
   }, [user, refreshUser, setMarkets]);
 
-  // Render current page
   const renderPage = () => {
     switch (currentPage) {
       case 'markets':
-        return user ? <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} /> : null;
-      case 'admin':
-        return <AdminPage />;
-      case 'profile':
-        return <ProfilePage />;
+        // PUBLIC: Anyone can see this!
+        return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
       case 'leaderboard':
+        // PUBLIC: Anyone can see this!
         return <LeaderboardPage />;
+      case 'admin':
+        // PROTECTED
+        return user?.isAdmin ? <AdminPage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
+      case 'profile':
+        // PROTECTED
+        return user ? <ProfilePage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
       default:
-        return user ? <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} /> : null;
+        return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
     }
   };
 
-  // Show sign in if not authenticated
-  if (!isAuthenticated) {
+  // ON-DEMAND SIGN IN: Only shows if they explicitly trigger it
+  if (showSignIn && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950">
-        <Toaster 
-          position="top-right" 
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: '#18181B',
-              border: '1px solid #27272A',
-              color: '#fff',
-            },
-          }}
-        />
         <SignInPage onSignIn={handleSignIn} />
+        {/* Optional: Add a "Back to Markets" cancel button inside your SignInPage! */}
       </div>
     );
   }
 
-  // Show onboarding for new users
   if (showOnboarding) {
     return (
       <div className="min-h-screen bg-zinc-950">
-        <Toaster 
-          position="top-right" 
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: '#18181B',
-              border: '1px solid #27272A',
-              color: '#fff',
-            },
-          }}
-        />
         <OnboardingPage onComplete={handleOnboardingComplete} />
       </div>
     );
@@ -187,11 +155,7 @@ function AppContent() {
         position="top-right" 
         theme="dark"
         toastOptions={{
-          style: {
-            background: '#18181B',
-            border: '1px solid #27272A',
-            color: '#fff',
-          },
+          style: { background: '#18181B', border: '1px solid #27272A', color: '#fff' },
         }}
       />
       
@@ -199,6 +163,7 @@ function AppContent() {
         currentPage={currentPage}
         onPageChange={setCurrentPage}
         onDepositClick={() => setIsDepositOpen(true)} 
+        onSignInClick={() => setShowSignIn(true)} // <-- NEW: Passed down to Navbar
       />
 
       {renderPage()}

@@ -8,15 +8,10 @@ interface NavbarProps {
   currentPage?: PageType;
   onPageChange?: (page: PageType) => void;
   onDepositClick: () => void;
+  onSignInClick: () => void; // <-- NEW: Added this prop for guests!
 }
 
-const navItems: { id: PageType; label: string; icon: React.ElementType }[] = [
-  { id: 'markets', label: 'Markets', icon: TrendingUp },
-  { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-  { id: 'profile', label: 'Profile', icon: User },
-];
-
-export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }: NavbarProps) {
+export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, onSignInClick }: NavbarProps) {
   const { user, isAuthenticated, logout, isAdmin } = useUser();
 
   const formatBalance = (amount: number) => {
@@ -27,10 +22,18 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
     }).format(amount);
   };
 
-  // Add admin nav item if user is admin
-  const allNavItems = isAdmin 
-    ? [...navItems, { id: 'admin' as PageType, label: 'Admin', icon: Shield }]
-    : navItems;
+  // NEW: Dynamically build nav items based on authentication!
+  const allNavItems = [
+    { id: 'markets' as PageType, label: 'Markets', icon: TrendingUp },
+    { id: 'leaderboard' as PageType, label: 'Leaderboard', icon: Trophy },
+  ];
+
+  if (isAuthenticated) {
+    allNavItems.push({ id: 'profile' as PageType, label: 'Profile', icon: User });
+    if (isAdmin) {
+      allNavItems.push({ id: 'admin' as PageType, label: 'Admin', icon: Shield });
+    }
+  }
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/80">
@@ -70,11 +73,11 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
           })}
         </div>
 
-        {/* Right side - Balance, User & Deposit */}
+        {/* Right side - Dynamic based on Auth */}
         <div className="flex items-center gap-2 sm:gap-4">
-          {isAuthenticated && user && (
+          {isAuthenticated && user ? (
+            // VIP ROOM: Show everything for logged-in users
             <>
-              {/* Balance */}
               <div className="hidden sm:flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 border border-zinc-800">
                 <Wallet className="h-4 w-4 text-neon-green" />
                 <span className="text-sm font-medium text-zinc-400">Balance</span>
@@ -83,7 +86,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                 </span>
               </div>
               
-              {/* Mobile balance - compact */}
               <div className="flex sm:hidden items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 border border-zinc-800">
                 <Wallet className="h-4 w-4 text-neon-green" />
                 <span className="text-sm font-semibold text-white">
@@ -91,7 +93,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                 </span>
               </div>
 
-              {/* User nickname */}
               <div className="hidden lg:flex items-center gap-2">
                 <span className="text-sm text-zinc-500">{user.nickname}</span>
               </div>
@@ -104,7 +105,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                 <span className="sm:hidden">+</span>
               </Button>
 
-              {/* Logout - Desktop */}
               <button
                 onClick={logout}
                 className="hidden md:flex p-2 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
@@ -113,6 +113,14 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                 <LogOut className="h-4 w-4" />
               </button>
             </>
+          ) : (
+            // GUEST ROOM: Show the Sign In button!
+            <Button
+              onClick={onSignInClick}
+              className="bg-white hover:bg-zinc-200 text-black font-semibold px-4 sm:px-6 transition-all duration-200"
+            >
+              Sign In
+            </Button>
           )}
         </div>
       </div>
@@ -129,9 +137,7 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                   key={item.id}
                   onClick={() => onPageChange?.(item.id)}
                   className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all ${
-                    isActive
-                      ? 'text-white'
-                      : 'text-zinc-500'
+                    isActive ? 'text-white' : 'text-zinc-500'
                   }`}
                 >
                   <Icon className={`h-5 w-5 ${isActive ? 'text-neon-blue' : ''}`} />
@@ -139,14 +145,17 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick }
                 </button>
               );
             })}
-            {/* Mobile Logout */}
-            <button
-              onClick={logout}
-              className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-zinc-500"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="text-xs font-medium">Logout</span>
-            </button>
+            
+            {/* Show Logout only on mobile if logged in */}
+            {isAuthenticated && (
+              <button
+                onClick={logout}
+                className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-zinc-500"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="text-xs font-medium">Logout</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
