@@ -7,7 +7,7 @@ import type { Market, User } from '@/types';
 
 interface MarketsPageProps {
   markets: Market[];
-  user: User;
+  user: User | null; // <-- FIX 1: Tell TypeScript the user might be a guest (null)
   onPlaceBet: (marketId: string, option: 'A' | 'B', amount: number) => Promise<void>;
 }
 
@@ -109,10 +109,12 @@ export function MarketsPage({ markets, user, onPlaceBet }: MarketsPageProps) {
         <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="h-4 w-4 text-neon-green flex-shrink-0" />
-            <span className="text-xs text-zinc-500 truncate">Your Balance</span>
+            {/* FIX 2: Change text to "Guest Mode" if no user exists */}
+            <span className="text-xs text-zinc-500 truncate">{user ? 'Your Balance' : 'Guest Mode'}</span>
           </div>
+          {/* FIX 3: Safely check user?.balance, default to 0 */}
           <p className="text-xl sm:text-2xl font-bold text-neon-green truncate">
-            {formatCurrency(user.balance)}
+            {user ? formatCurrency(user.balance) : formatCurrency(0)}
           </p>
         </div>
       </div>
@@ -145,7 +147,8 @@ export function MarketsPage({ markets, user, onPlaceBet }: MarketsPageProps) {
         isOpen={isBettingOpen}
         onClose={() => setIsBettingOpen(false)}
         onPlaceBet={onPlaceBet}
-        userBalance={user.balance}
+        // FIX 4: Safely pass the balance or 0 if guest
+        userBalance={user?.balance || 0} 
       />
     </main>
   );
