@@ -12,7 +12,7 @@ export function ProfilePage() {
     const fetchBets = async () => {
       if (!user) return;
       try {
-        const response = await fetch(`http://localhost:3000/api/bets?email=${encodeURIComponent(user.email)}`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/bets?email=${encodeURIComponent(user.email)}`);
         const data = await response.json();
         setBets(data);
       } catch (error) {
