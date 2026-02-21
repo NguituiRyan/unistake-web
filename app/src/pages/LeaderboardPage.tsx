@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
-  Trophy, 
   Medal, 
   Crown, 
   Target,
   Percent,
   Phone,
-  Loader2,
-//   CheckCircle2 // Removed unused import
+  Loader2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,44 +90,19 @@ export function LeaderboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-12">
-      {/* Header */}
-      <div className="border-b border-zinc-800 bg-zinc-900/50">
-        <div className="container mx-auto max-w-4xl px-4 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30">
-                <Trophy className="h-6 w-6 text-yellow-500" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Campus Leaderboard</h1>
-                <p className="text-sm text-zinc-500">Top traders by successful predictions</p>
-              </div>
-            </div>
-            
-            {currentUserRank && currentUserRank > 0 && (
-              <div className="text-right">
-                <p className="text-sm text-zinc-500">Your Rank</p>
-                <p className="text-2xl sm:text-4xl font-bold text-neon-blue">#{currentUserRank}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto max-w-4xl px-4 py-8">
-        {/* Top 3 Podium - UPDATED: Now uses CSS Grid to span full width */}
+    <div className="min-h-screen bg-zinc-950 pb-12 pt-6 sm:pt-8">
+      <div className="container mx-auto max-w-4xl px-4">
+        
+        {/* Top 3 Podium - Now the very first thing on the page! */}
         {topThree.length >= 3 && (
           <div className="mb-10">
-            {/* Changed from flex to grid for wider columns */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end mb-2">
               
-              {/* 2nd Place - Column 1 */}
+              {/* 2nd Place */}
               <div className="flex flex-col items-center w-full">
                 <Card className={`w-full p-3 sm:p-4 ${getRankStyle(2).bg} border-2 ${getRankStyle(2).border} ${getRankStyle(2).glow}`}>
                   <div className="flex flex-col items-center">
                     {getRankStyle(2).icon}
-                    {/* Simplified Name Display: Truncates nicely now that card is wider */}
                     <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
                       {topThree[1].nickname}
                     </p>
@@ -141,7 +114,7 @@ export function LeaderboardPage() {
                 </div>
               </div>
 
-              {/* 1st Place - Column 2 (Popped up higher with negative margin and z-index) */}
+              {/* 1st Place */}
               <div className="flex flex-col items-center w-full -mt-6 z-10">
                 <Card className={`w-full p-4 sm:p-5 ${getRankStyle(1).bg} border-2 ${getRankStyle(1).border} ${getRankStyle(1).glow}`}>
                   <div className="flex flex-col items-center">
@@ -149,7 +122,6 @@ export function LeaderboardPage() {
                       {getRankStyle(1).icon}
                       <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse" />
                     </div>
-                    {/* Simplified Name Display */}
                     <p className="text-base sm:text-lg font-bold text-white mt-2 truncate w-full text-center">
                       {topThree[0].nickname}
                     </p>
@@ -165,12 +137,11 @@ export function LeaderboardPage() {
                 </div>
               </div>
 
-              {/* 3rd Place - Column 3 */}
+              {/* 3rd Place */}
               <div className="flex flex-col items-center w-full">
                 <Card className={`w-full p-3 sm:p-4 ${getRankStyle(3).bg} border-2 ${getRankStyle(3).border} ${getRankStyle(3).glow}`}>
                   <div className="flex flex-col items-center">
                     {getRankStyle(3).icon}
-                    {/* Simplified Name Display */}
                     <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
                       {topThree[2].nickname}
                     </p>
@@ -185,15 +156,24 @@ export function LeaderboardPage() {
           </div>
         )}
 
-        {/* STATS SUMMARY GRID REMOVED HERE to save real estate */}
-
         {/* Full Leaderboard List */}
         <Card className="bg-zinc-900 border-zinc-800 overflow-hidden mt-8">
-          <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
-            {/* UPDATED HEADER: Added trader count here */}
-            <h2 className="text-lg font-semibold text-white">
-              Full Rankings ({users.length} Total Traders)
+          
+          {/* UPDATED HEADER: "Your Rank" has been moved here! */}
+          <div className="px-4 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              Full Rankings 
+              <span className="text-sm font-normal text-zinc-500 hidden sm:inline-block">({users.length} Traders)</span>
             </h2>
+            
+            {currentUserRank && currentUserRank > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-500">Your Rank:</span>
+                <Badge className="bg-neon-blue/20 text-neon-blue border border-neon-blue/30 font-bold px-2 py-0.5 text-sm">
+                  #{currentUserRank}
+                </Badge>
+              </div>
+            )}
           </div>
           
           <div className="divide-y divide-zinc-800">
@@ -234,7 +214,7 @@ export function LeaderboardPage() {
                         {user.nickname}
                       </p>
                       {isCurrentUser && (
-                        <Badge className="bg-neon-blue/20 text-neon-blue text-xs flex-shrink-0">
+                        <Badge className="bg-neon-blue/20 text-neon-blue text-[10px] px-1.5 py-0 flex-shrink-0">
                           You
                         </Badge>
                       )}
