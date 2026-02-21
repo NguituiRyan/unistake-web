@@ -7,7 +7,7 @@ import {
   Percent,
   Phone,
   Loader2,
-  CheckCircle2
+//   CheckCircle2 // Removed unused import
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +103,6 @@ export function LeaderboardPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Campus Leaderboard</h1>
-                {/* UPDATED: Subtitle */}
                 <p className="text-sm text-zinc-500">Top traders by successful predictions</p>
               </div>
             </div>
@@ -119,37 +118,41 @@ export function LeaderboardPage() {
       </div>
 
       <div className="container mx-auto max-w-4xl px-4 py-8">
-        {/* Top 3 Podium */}
+        {/* Top 3 Podium - UPDATED: Now uses CSS Grid to span full width */}
         {topThree.length >= 3 && (
           <div className="mb-10">
-            <div className="flex items-end justify-center gap-2 sm:gap-4 mb-8">
-              {/* 2nd Place */}
-              <div className="flex flex-col items-center">
-                <Card className={`w-20 sm:w-28 p-3 sm:p-4 ${getRankStyle(2).bg} border-2 ${getRankStyle(2).border} ${getRankStyle(2).glow}`}>
+            {/* Changed from flex to grid for wider columns */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end mb-2">
+              
+              {/* 2nd Place - Column 1 */}
+              <div className="flex flex-col items-center w-full">
+                <Card className={`w-full p-3 sm:p-4 ${getRankStyle(2).bg} border-2 ${getRankStyle(2).border} ${getRankStyle(2).glow}`}>
                   <div className="flex flex-col items-center">
                     {getRankStyle(2).icon}
-                    <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[1].nickname}</p>
-                    <p className="text-xs sm:text-sm font-bold text-white truncate w-full text-center sm:hidden">{topThree[1].nickname.slice(0, 8)}</p>
-                    {/* UPDATED: Showing Wins instead of Balance */}
+                    {/* Simplified Name Display: Truncates nicely now that card is wider */}
+                    <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
+                      {topThree[1].nickname}
+                    </p>
                     <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[1].wonBets || 0} Wins</p>
                   </div>
                 </Card>
-                <div className="w-20 sm:w-28 h-16 sm:h-24 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
+                <div className="w-full h-16 sm:h-24 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
                   <span className="text-xl sm:text-2xl font-bold text-zinc-500">2</span>
                 </div>
               </div>
 
-              {/* 1st Place */}
-              <div className="flex flex-col items-center -mt-4">
-                <Card className={`w-24 sm:w-32 p-4 sm:p-5 ${getRankStyle(1).bg} border-2 ${getRankStyle(1).border} ${getRankStyle(1).glow}`}>
+              {/* 1st Place - Column 2 (Popped up higher with negative margin and z-index) */}
+              <div className="flex flex-col items-center w-full -mt-6 z-10">
+                <Card className={`w-full p-4 sm:p-5 ${getRankStyle(1).bg} border-2 ${getRankStyle(1).border} ${getRankStyle(1).glow}`}>
                   <div className="flex flex-col items-center">
                     <div className="relative">
                       {getRankStyle(1).icon}
                       <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse" />
                     </div>
-                    <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[0].nickname}</p>
-                    <p className="text-xs font-bold text-white truncate w-full text-center sm:hidden">{topThree[0].nickname.slice(0, 8)}</p>
-                    {/* UPDATED: Showing Wins instead of Balance */}
+                    {/* Simplified Name Display */}
+                    <p className="text-base sm:text-lg font-bold text-white mt-2 truncate w-full text-center">
+                      {topThree[0].nickname}
+                    </p>
                     <p className="text-sm sm:text-lg font-bold text-white mt-1">{topThree[0].wonBets || 0} Wins</p>
                     <div className="flex items-center gap-1 mt-1">
                       <Target className="h-3 w-3 text-zinc-500" />
@@ -157,23 +160,24 @@ export function LeaderboardPage() {
                     </div>
                   </div>
                 </Card>
-                <div className="w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-b from-yellow-500/20 to-transparent rounded-b-lg mt-1 flex items-center justify-center">
+                <div className="w-full h-24 sm:h-32 bg-gradient-to-b from-yellow-500/20 to-transparent rounded-b-lg mt-1 flex items-center justify-center">
                   <span className="text-2xl sm:text-3xl font-bold text-yellow-500">1</span>
                 </div>
               </div>
 
-              {/* 3rd Place */}
-              <div className="flex flex-col items-center">
-                <Card className={`w-20 sm:w-28 p-3 sm:p-4 ${getRankStyle(3).bg} border-2 ${getRankStyle(3).border} ${getRankStyle(3).glow}`}>
+              {/* 3rd Place - Column 3 */}
+              <div className="flex flex-col items-center w-full">
+                <Card className={`w-full p-3 sm:p-4 ${getRankStyle(3).bg} border-2 ${getRankStyle(3).border} ${getRankStyle(3).glow}`}>
                   <div className="flex flex-col items-center">
                     {getRankStyle(3).icon}
-                    <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[2].nickname}</p>
-                    <p className="text-xs font-bold text-white truncate w-full text-center sm:hidden">{topThree[2].nickname.slice(0, 8)}</p>
-                    {/* UPDATED: Showing Wins instead of Balance */}
+                    {/* Simplified Name Display */}
+                    <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
+                      {topThree[2].nickname}
+                    </p>
                     <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[2].wonBets || 0} Wins</p>
                   </div>
                 </Card>
-                <div className="w-20 sm:w-28 h-12 sm:h-16 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
+                <div className="w-full h-12 sm:h-16 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
                   <span className="text-xl sm:text-2xl font-bold text-zinc-500">3</span>
                 </div>
               </div>
@@ -181,31 +185,15 @@ export function LeaderboardPage() {
           </div>
         )}
 
-        {/* Stats Summary - Responsive */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8">
-          <Card className="p-3 sm:p-4 bg-zinc-900 border-zinc-800 text-center overflow-hidden">
-            <p className="text-lg sm:text-2xl font-bold text-white truncate">{users.length}</p>
-            <p className="text-xs text-zinc-500 truncate">Total Traders</p>
-          </Card>
-          {/* UPDATED: Tracking Total Platform Wins instead of Balance */}
-          <Card className="p-3 sm:p-4 bg-zinc-900 border-zinc-800 text-center overflow-hidden">
-            <p className="text-lg sm:text-2xl font-bold text-neon-green truncate">
-              {users.reduce((acc, u) => acc + (u.wonBets || 0), 0)}
-            </p>
-            <p className="text-xs text-zinc-500 truncate">Total Wins</p>
-          </Card>
-          <Card className="p-3 sm:p-4 bg-zinc-900 border-zinc-800 text-center overflow-hidden">
-            <p className="text-lg sm:text-2xl font-bold text-neon-blue truncate">
-              {users.length > 0 ? Math.round(users.reduce((acc, u) => acc + u.winRate, 0) / users.length) : 0}%
-            </p>
-            <p className="text-xs text-zinc-500 truncate">Avg Win Rate</p>
-          </Card>
-        </div>
+        {/* STATS SUMMARY GRID REMOVED HERE to save real estate */}
 
         {/* Full Leaderboard List */}
-        <Card className="bg-zinc-900 border-zinc-800 overflow-hidden">
+        <Card className="bg-zinc-900 border-zinc-800 overflow-hidden mt-8">
           <div className="px-4 sm:px-6 py-4 border-b border-zinc-800">
-            <h2 className="text-lg font-semibold text-white">Full Rankings</h2>
+            {/* UPDATED HEADER: Added trader count here */}
+            <h2 className="text-lg font-semibold text-white">
+              Full Rankings ({users.length} Total Traders)
+            </h2>
           </div>
           
           <div className="divide-y divide-zinc-800">
@@ -263,7 +251,7 @@ export function LeaderboardPage() {
                     </div>
                   </div>
 
-                  {/* Stats - UPDATED to show Wins instead of Balance */}
+                  {/* Stats */}
                   <div className="text-right flex-shrink-0">
                     <p className="font-semibold text-white text-sm sm:text-base truncate flex items-center justify-end gap-1.5">
                       {user.wonBets || 0} <span className="text-xs text-zinc-400 font-normal">Wins</span>
