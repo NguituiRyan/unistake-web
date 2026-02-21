@@ -1,6 +1,5 @@
-import { TrendingUp, Users, Clock, ChevronRight } from 'lucide-react';
+import { TrendingUp, Users, Clock, ChevronRight, Share2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import type { Market } from '@/types';
 import { calculateOdds } from '@/lib/api';
 
@@ -10,7 +9,6 @@ interface MarketCardProps {
 }
 
 export function MarketCard({ market, onClick }: MarketCardProps) {
-  // Calculate odds dynamically
   const probA = calculateOdds(market.poolA, market.poolB, 'A');
   const probB = calculateOdds(market.poolA, market.poolB, 'B');
 
@@ -29,83 +27,96 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays <= 0) return 'Ending soon';
-    if (diffDays === 1) return '1 day left';
-    return `${diffDays} days left`;
+    if (diffDays === 1) return '1d left';
+    return `${diffDays}d left`; // Compacted time format
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const platformUrl = "https://unistake.angawatch.co.ke"; 
+    const message = `🔥 Who do you think will win? \n\n*${market.title}*\n🔵 ${market.optionA}\n🔴 ${market.optionB}\n\nStake KES and prove it on UniStake: ${platformUrl}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
     <Card
       onClick={onClick}
-      className="group cursor-pointer overflow-hidden bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-all duration-300 hover:shadow-[0_0_30px_rgba(0,0,0,0.3)]"
+      className="group cursor-pointer overflow-hidden bg-zinc-900 border-zinc-800 hover:border-zinc-700 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.2)]"
     >
-      {/* Header with category and time */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800/50">
-        <Badge 
-          variant="secondary" 
-          className="bg-zinc-800 text-zinc-400 hover:bg-zinc-800 text-xs font-medium"
-        >
-          {market.category}
-        </Badge>
-        <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{formatDate(market.endDate)}</span>
-        </div>
-      </div>
-
-      {/* Market Title */}
-      <div className="px-4 py-4">
-        <h3 className="text-base font-semibold text-white leading-snug line-clamp-2 group-hover:text-neon-blue transition-colors">
+      {/* COMPACTED TOP ROW: Title & Category together */}
+      <div className="px-3 pt-3 pb-2 flex items-start justify-between gap-2">
+        <h3 className="text-sm sm:text-base font-semibold text-white leading-snug line-clamp-2 group-hover:text-zinc-300 transition-colors">
           {market.title}
         </h3>
+        <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-400">
+          {market.category}
+        </span>
       </div>
 
-      {/* Probability Bars - Dynamic */}
-      <div className="px-4 pb-4">
-        <div className="flex h-10 rounded-lg overflow-hidden mb-3">
-          {/* Option A Bar */}
+      <div className="px-3 pb-3">
+        {/* TRANSLUCENT PROGRESS BAR */}
+        <div className="flex h-10 rounded-lg overflow-hidden mb-2 bg-zinc-950 border border-zinc-800">
+          {/* Option A - Blue (Translucent) */}
           <div
-            className="relative flex items-center justify-start px-3 bg-neon-blue transition-all duration-500"
+            className="flex items-center justify-between px-2 bg-blue-500/20 border-r border-blue-500/30 transition-all duration-500"
             style={{ width: `${probA}%` }}
           >
-            <span className="text-xs font-bold text-white truncate">
+            <span className="text-xs font-medium text-blue-400 truncate mr-1">
               {market.optionA}
             </span>
-            {probA > 25 && (
-              <span className="absolute right-2 text-xs font-bold text-white/90">
+            {probA >= 20 && (
+              <span className="text-[10px] font-bold text-blue-300 shrink-0">
                 {probA.toFixed(0)}%
               </span>
             )}
           </div>
           
-          {/* Option B Bar */}
+          {/* Option B - Pink (Translucent) */}
           <div
-            className="relative flex items-center justify-end px-3 bg-neon-pink transition-all duration-500"
+            className="flex items-center justify-between flex-row-reverse px-2 bg-rose-500/20 border-l border-rose-500/30 transition-all duration-500"
             style={{ width: `${probB}%` }}
           >
-            {probB > 25 && (
-              <span className="absolute left-2 text-xs font-bold text-white/90">
+            <span className="text-xs font-medium text-rose-400 truncate ml-1">
+              {market.optionB}
+            </span>
+            {probB >= 20 && (
+              <span className="text-[10px] font-bold text-rose-300 shrink-0">
                 {probB.toFixed(0)}%
               </span>
             )}
-            <span className="text-xs font-bold text-white truncate">
-              {market.optionB}
-            </span>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-zinc-500">
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span className="truncate">Vol: {formatCurrency(market.totalVolume)}</span>
+        {/* BOTTOM STATS ROW: Time, Volume, Traders, Share */}
+        <div className="flex items-center justify-between text-[11px] sm:text-xs">
+          <div className="flex items-center gap-3 sm:gap-4 text-zinc-500">
+            {/* Volume */}
+            <div className="flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" />
+              <span className="truncate">{formatCurrency(market.totalVolume)}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-zinc-500">
-              <Users className="h-3.5 w-3.5" />
-              <span>{market.traders} traders</span>
+            {/* Traders */}
+            <div className="flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              <span>{market.traders}</span>
+            </div>
+            {/* Time Left (Moved here!) */}
+            <div className="flex items-center gap-1 text-zinc-400">
+              <Clock className="h-3 w-3" />
+              <span>{formatDate(market.endDate)}</span>
             </div>
           </div>
-          <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-neon-blue group-hover:translate-x-1 transition-all" />
+          
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={handleShare}
+              className="p-1.5 rounded-md text-zinc-500 hover:text-green-500 hover:bg-green-500/10 transition-colors"
+              title="Share to WhatsApp"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </Card>
