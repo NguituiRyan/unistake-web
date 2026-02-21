@@ -23,7 +23,7 @@ function AppContent() {
   // State
   const [currentPage, setCurrentPage] = useState<PageType>('markets');
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showSignIn, setShowSignIn] = useState(false); // <-- NEW: Controls the login screen overlay
+  const [showSignIn, setShowSignIn] = useState(false);
   
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -36,7 +36,6 @@ function AppContent() {
           const realMarkets = await getMarkets();
           setMarkets(realMarkets);
           
-          // NEW: Auto-sync the user's balance in the background too!
           if (isAuthenticated) {
             await refreshUser();
           }
@@ -49,10 +48,10 @@ function AppContent() {
       const pollInterval = setInterval(loadMarkets, 5000); 
       return () => clearInterval(pollInterval); 
     }
-  }, [showOnboarding, isAuthenticated, refreshUser]); // Added dependencies here
+  }, [showOnboarding, isAuthenticated, refreshUser]); 
 
   const handleSignIn = (isNewUser: boolean) => {
-    setShowSignIn(false); // Close the sign-in view when done
+    setShowSignIn(false); 
     if (isNewUser) {
       setShowOnboarding(true);
     }
@@ -121,16 +120,12 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'markets':
-        // PUBLIC: Anyone can see this!
         return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
       case 'leaderboard':
-        // PUBLIC: Anyone can see this!
         return <LeaderboardPage />;
       case 'admin':
-        // PROTECTED
         return user?.isAdmin ? <AdminPage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
       case 'profile':
-        // PROTECTED
         return user ? <ProfilePage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
       default:
         return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
@@ -141,7 +136,6 @@ function AppContent() {
   if (showSignIn && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col">
-        {/* NEW: Passed onBack to close the sign-in screen */}
         <SignInPage 
           onSignIn={handleSignIn} 
           onBack={() => setShowSignIn(false)} 
@@ -158,34 +152,8 @@ function AppContent() {
     );
   }
 
+  // --- THE FIX: Only ONE correct return block here! ---
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <Toaster 
-        position="top-right" 
-        theme="dark"
-        toastOptions={{
-          style: { background: '#18181B', border: '1px solid #27272A', color: '#fff' },
-        }}
-      />
-      
-      <Navbar 
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-        onDepositClick={() => setIsDepositOpen(true)} 
-        onSignInClick={() => setShowSignIn(true)} // <-- NEW: Passed down to Navbar
-      />
-
-      {renderPage()}
-
-      <DepositDrawer
-        isOpen={isDepositOpen}
-        onClose={() => setIsDepositOpen(false)}
-        onDeposit={handleDeposit}
-      />
-    </div>
-  );
-  return (
-    // 1. Added flex and flex-col to the main wrapper
     <div className="min-h-screen bg-zinc-950 flex flex-col"> 
       <Toaster 
         position="top-right" 
@@ -202,19 +170,20 @@ function AppContent() {
         onSignInClick={() => setShowSignIn(true)} 
       />
 
-      {/* 2. Wrapped renderPage in a flex-1 div to push the footer down */}
+      {/* Main content expands to push the footer down */}
       <div className="flex-1">
         {renderPage()}
       </div>
 
+      {/* The Footer firmly planted at the bottom */}
+      <Footer />
+
+      {/* Modals/Drawers stay out of the visual flow */}
       <DepositDrawer
         isOpen={isDepositOpen}
         onClose={() => setIsDepositOpen(false)}
         onDeposit={handleDeposit}
       />
-      
-      {/* 3. Drop the Footer in right here at the bottom! */}
-      <Footer />
     </div>
   );
 }
