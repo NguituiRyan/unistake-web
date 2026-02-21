@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
-import { ShieldCheck, ArrowLeft } from 'lucide-react'; 
+import { ShieldCheck, ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react'; 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface SignInPageProps {
   onSignIn: (isNewUser: boolean) => void;
@@ -9,11 +13,43 @@ interface SignInPageProps {
 }
 
 export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
-  const { login } = useUser();
+  const { login } = useUser(); // We will add email login to your context next!
+  
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // NOTE: We will connect this to your backend in the very next step!
+      toast.info(`Connecting to ${isSignUp ? 'Sign Up' : 'Login'} backend...`);
+      
+      // Simulated delay for UI feel until we link the API
+      setTimeout(() => setIsLoading(false), 1000); 
+    } catch (err: any) {
+      toast.error(err.message || 'Authentication failed');
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-zinc-950">
       
+      {/* Back Button */}
       <button
         onClick={onBack}
         className="absolute top-6 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
@@ -24,12 +60,12 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
 
       <div className="w-full max-w-md space-y-8 text-center mt-12 sm:mt-0">
         
-        {/* NEW IDENTITY: Information Market */}
+        {/* Logo & Identity */}
         <div className="flex flex-col items-center mb-6">
           <img 
             src="/logo.png" 
             alt="UniStake Logo" 
-            className="h-16 sm:h-20 w-auto object-contain mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]" 
+            className="h-14 sm:h-16 w-auto object-contain mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]" 
           />
           <h1 className="text-2xl font-bold text-white mb-2">
             Kenya's Premier Information Market
@@ -37,24 +73,70 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
           <p className="text-zinc-400 font-medium">Trade on your beliefs. Profit from being right.</p>
         </div>
 
-        {/* Login Box */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl flex flex-col items-center">
+        {/* Auth Box */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col items-center">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <ShieldCheck className="h-5 w-5 text-neon-green" />
-            <h2 className="text-xl font-semibold text-white">Trader Access</h2>
+            <ShieldCheck className="h-5 w-5 text-neon-blue" />
+            <h2 className="text-xl font-semibold text-white">
+              {isSignUp ? 'Create an Account' : 'Welcome Back'}
+            </h2>
           </div>
           
-          {/* SCRUBBED: Generic University Warning */}
-          <div className="w-full p-4 mb-8 rounded-lg bg-zinc-950/50 border border-zinc-800 text-center">
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              Security Check: You <span className="text-white font-bold">MUST</span> use your official <br className="hidden sm:block" />
-              <span className="text-white font-bold text-base bg-zinc-800 px-3 py-1 rounded-md mx-1 shadow-sm border border-zinc-700">University Email</span>
-              <br className="hidden sm:block" />
-              to join the trading floor.
-            </p>
+          {/* EMAIL & PASSWORD FORM */}
+          <form onSubmit={handleEmailAuth} className="w-full space-y-4 mb-6">
+            <div className="space-y-2 text-left">
+              <Label htmlFor="email" className="text-zinc-300">Email Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="pl-10 bg-zinc-950 border-zinc-800 text-white focus:border-neon-blue"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label htmlFor="password" className="text-zinc-300">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="pl-10 bg-zinc-950 border-zinc-800 text-white focus:border-neon-blue"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full h-11 bg-neon-blue hover:bg-blue-600 text-white font-semibold mt-2"
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (isSignUp ? 'Sign Up' : 'Log In')}
+            </Button>
+          </form>
+
+          {/* DIVIDER */}
+          <div className="relative w-full mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-800"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-zinc-900 px-2 text-zinc-500">Or continue with</span>
+            </div>
           </div>
 
-          <div className="flex justify-center w-full">
+          {/* GOOGLE BUTTON */}
+          <div className="flex justify-center w-full hover:scale-[1.02] transition-transform">
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 if (credentialResponse.credential) {
@@ -71,10 +153,23 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
               }}
               theme="filled_black"
               shape="rectangular"
-              text="continue_with"
+              text={isSignUp ? "signup_with" : "signin_with"}
               size="large"
+              width="100%"
             />
           </div>
+
+          {/* TOGGLE SIGN UP / LOG IN */}
+          <p className="mt-8 text-sm text-zinc-400">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button 
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-neon-blue hover:text-blue-400 font-semibold transition-colors"
+            >
+              {isSignUp ? 'Log In' : 'Sign Up'}
+            </button>
+          </p>
         </div>
       </div>
     </div>
