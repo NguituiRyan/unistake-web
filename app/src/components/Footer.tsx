@@ -87,7 +87,7 @@ export function Footer() {
                   {/* Contact Buttons */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                     <a 
-                      href="https://wa.me/254741201961?text=Hey%20UniStake%20Support!%20I%20need%20help%20with..." 
+                      href="https://wa.me/254733333147?text=Hey%20UniStake%20Support!%20I%20need%20help%20with..." 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 rounded-lg p-3 transition-colors font-semibold"
