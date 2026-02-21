@@ -10,6 +10,7 @@ import { MarketsPage } from '@/pages/MarketsPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
+import { Footer } from '@/components/Footer';
 import type { Market } from '@/types';
 
 import { deposit, placeBet, getMarkets } from '@/lib/api';
@@ -173,6 +174,39 @@ function AppContent() {
         onClose={() => setIsDepositOpen(false)}
         onDeposit={handleDeposit}
       />
+    </div>
+  );
+  return (
+    // 1. Added flex and flex-col to the main wrapper
+    <div className="min-h-screen bg-zinc-950 flex flex-col"> 
+      <Toaster 
+        position="top-right" 
+        theme="dark"
+        toastOptions={{
+          style: { background: '#18181B', border: '1px solid #27272A', color: '#fff' },
+        }}
+      />
+      
+      <Navbar 
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+        onDepositClick={() => setIsDepositOpen(true)} 
+        onSignInClick={() => setShowSignIn(true)} 
+      />
+
+      {/* 2. Wrapped renderPage in a flex-1 div to push the footer down */}
+      <div className="flex-1">
+        {renderPage()}
+      </div>
+
+      <DepositDrawer
+        isOpen={isDepositOpen}
+        onClose={() => setIsDepositOpen(false)}
+        onDeposit={handleDeposit}
+      />
+      
+      {/* 3. Drop the Footer in right here at the bottom! */}
+      <Footer />
     </div>
   );
 }
