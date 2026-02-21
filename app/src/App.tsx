@@ -132,12 +132,15 @@ function AppContent() {
     }
   };
 
-  // ON-DEMAND SIGN IN: Only shows if they explicitly trigger it
+  // ON-DEMAND SIGN IN
   if (showSignIn && !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-zinc-950">
-        <SignInPage onSignIn={handleSignIn} />
-        {/* Optional: Add a "Back to Markets" cancel button inside your SignInPage! */}
+      <div className="min-h-screen bg-zinc-950 flex flex-col">
+        {/* NEW: Passed onBack to close the sign-in screen */}
+        <SignInPage 
+          onSignIn={handleSignIn} 
+          onBack={() => setShowSignIn(false)} 
+        />
       </div>
     );
   }

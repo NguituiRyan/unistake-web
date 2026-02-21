@@ -117,19 +117,16 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
             </>
           ) : (
             // GUEST ROOM: The "Hook" Setup
-            <div className="flex items-center gap-3">
-              {/* Show Deposit to guests to hook them, but it triggers SignIn! */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 onClick={onSignInClick}
-                className="bg-neon-green hover:bg-green-500 text-black font-semibold px-4 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                className="bg-neon-green hover:bg-green-500 text-black font-semibold px-3 sm:px-4 text-xs sm:text-sm transition-all duration-200"
               >
                 Deposit
               </Button>
-              
-              {/* Subtle Sign In button for desktop guests */}
               <Button
                 onClick={onSignInClick}
-                className="hidden sm:flex bg-white hover:bg-zinc-200 text-black font-semibold px-4 transition-all duration-200"
+                className="bg-white hover:bg-zinc-200 text-black font-semibold px-3 sm:px-4 text-xs sm:text-sm transition-all duration-200"
               >
                 Sign In
               </Button>

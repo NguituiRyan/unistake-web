@@ -1,18 +1,29 @@
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
-import { GraduationCap, ShieldCheck } from 'lucide-react';
+import { GraduationCap, ShieldCheck, ArrowLeft } from 'lucide-react'; // <-- Added ArrowLeft
 
 interface SignInPageProps {
   onSignIn: (isNewUser: boolean) => void;
+  onBack: () => void; // <-- NEW: Added onBack prop
 }
 
-export function SignInPage({ onSignIn }: SignInPageProps) {
+export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
   const { login } = useUser();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+      
+      {/* NEW: The Back Button Escape Hatch */}
+      <button
+        onClick={onBack}
+        className="absolute top-6 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+      >
+        <ArrowLeft className="h-5 w-5" />
+        <span className="font-medium">Back to Markets</span>
+      </button>
+
+      <div className="w-full max-w-md space-y-8 text-center mt-12 sm:mt-0">
         {/* Logo Area */}
         <div className="flex flex-col items-center">
           <div className="h-16 w-16 bg-neon-blue rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(59,130,246,0.5)]">
@@ -31,7 +42,6 @@ export function SignInPage({ onSignIn }: SignInPageProps) {
             <h2 className="text-xl font-semibold text-white">Student Access</h2>
           </div>
           
-          {/* UPDATED: High-visibility email warning */}
           <div className="w-full p-4 mb-8 rounded-lg bg-zinc-950/50 border border-zinc-800 text-center">
             <p className="text-zinc-400 text-sm leading-relaxed">
               Security Check: You <span className="text-white font-bold">MUST</span> use your official <br className="hidden sm:block" />
@@ -61,24 +71,6 @@ export function SignInPage({ onSignIn }: SignInPageProps) {
               text="continue_with"
               size="large"
             />
-          </div>
-        </div>
-
-        {/* Feature Highlights */}
-        <div className="grid grid-cols-2 gap-4 text-left">
-          <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold px-2 py-1 rounded bg-neon-green/20 text-neon-green">KES</span>
-              <p className="font-medium text-white text-sm">Bet with KES</p>
-            </div>
-            <p className="text-xs text-zinc-500">M-Pesa integration coming soon</p>
-          </div>
-          <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold px-2 py-1 rounded bg-neon-blue/20 text-neon-blue">#1</span>
-              <p className="font-medium text-white text-sm">Compete</p>
-            </div>
-            <p className="text-xs text-zinc-500">Climb the campus leaderboard</p>
           </div>
         </div>
       </div>

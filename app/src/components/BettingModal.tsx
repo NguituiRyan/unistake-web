@@ -12,6 +12,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Market } from '@/types';
 import { calculateOdds, calculatePotentialReturn } from '@/lib/api';
+// NEW: Import user context to check authentication state
+import { useUser } from '@/contexts/UserContext'; 
 
 interface BettingModalProps {
   market: Market | null;
@@ -22,6 +24,9 @@ interface BettingModalProps {
 }
 
 export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance }: BettingModalProps) {
+  // NEW: Get auth state
+  const { isAuthenticated } = useUser(); 
+
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | null>(null);
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +51,15 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
     if (!market || !selectedOption || !amount) return;
 
     const betAmount = parseFloat(amount);
+    
+    // THE BOUNCER INTERCEPT: If guest, trigger Sign-In and close modal immediately
+    if (!isAuthenticated) {
+      await onPlaceBet(market.id, selectedOption, betAmount);
+      onClose(); // Close the modal so the Sign-In screen is fully visible
+      return;
+    }
+
+    // IF LOGGED IN: Proceed with normal validation and betting
     if (betAmount > userBalance) return;
 
     setIsLoading(true);
@@ -179,8 +193,9 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                   <Label htmlFor="betAmount" className="text-sm font-medium text-zinc-300">
                     Bet Amount (KES)
                   </Label>
+                  {/* NEW: Hide balance if not logged in */}
                   <span className="text-xs text-zinc-500">
-                    Balance: {formatCurrency(userBalance)}
+                    {isAuthenticated ? `Balance: ${formatCurrency(userBalance)}` : 'Sign in to play'}
                   </span>
                 </div>
                 <div className="relative">
@@ -194,7 +209,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="100"
                     min="10"
-                    max={userBalance}
+                    max={isAuthenticated ? userBalance : undefined}
                     className="pl-12 bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-600 focus:border-neon-green focus:ring-neon-green/20"
                     disabled={isLoading}
                   />
@@ -207,7 +222,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                       key={quickAmount}
                       type="button"
                       onClick={() => setAmount(quickAmount.toString())}
-                      disabled={isLoading || quickAmount > userBalance}
+                      disabled={isLoading || (isAuthenticated && quickAmount > userBalance)}
                       className="flex-1 py-1.5 px-2 rounded-md bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors disabled:opacity-50"
                     >
                       {quickAmount}
@@ -232,8 +247,8 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </div>
               )}
 
-              {/* Insufficient Balance Warning */}
-              {amount && parseFloat(amount) > userBalance && (
+              {/* Insufficient Balance Warning - ONLY shows if logged in */}
+              {isAuthenticated && amount && parseFloat(amount) > userBalance && (
                 <Alert className="bg-red-950/30 border-red-900/50">
                   <AlertCircle className="h-4 w-4 text-red-500" />
                   <AlertDescription className="text-red-400 text-sm">
@@ -242,7 +257,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </Alert>
               )}
 
-              {/* Submit Button */}
+              {/* Submit Button - Dynamic text based on Auth! */}
               <Button
                 type="submit"
                 disabled={
@@ -250,17 +265,21 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                   !selectedOption || 
                   !amount || 
                   parseFloat(amount) <= 0 || 
-                  parseFloat(amount) > userBalance
+                  (isAuthenticated && parseFloat(amount) > userBalance) // NEW: Only disable for balance if logged in
                 }
-                className="w-full h-12 bg-neon-green hover:bg-green-500 text-black font-semibold text-base transition-all duration-200 hover:shadow-[0_0_30px_rgba(34,197,94,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full h-12 font-semibold text-base transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isAuthenticated 
+                    ? 'bg-neon-green hover:bg-green-500 text-black hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]' 
+                    : 'bg-white hover:bg-zinc-200 text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                }`}
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Placing Bet...
+                    {isAuthenticated ? 'Placing Bet...' : 'Redirecting...'}
                   </span>
                 ) : (
-                  'Place Bet'
+                  isAuthenticated ? 'Place Bet' : 'Sign in to Place Bet'
                 )}
               </Button>
             </form>
