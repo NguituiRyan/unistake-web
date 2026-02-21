@@ -84,7 +84,7 @@ function AppContent() {
     }
   }, [user, refreshUser]);
 
-  const handlePlaceBet = useCallback(async (marketId: string, option: 'A' | 'B', amount: number) => {
+  const handlePlaceBet = useCallback(async (marketId: string, option: 'A' | 'B', amount: number, thesis?: string) => {
     if (!user) {
       // THE BOUNCER: If guest tries to place a bet, show the sign-in screen!
       setShowSignIn(true);
@@ -92,7 +92,7 @@ function AppContent() {
     }
     
     try {
-      await placeBet(user.email, marketId, option, amount);
+      await placeBet(user.email, marketId, option, amount, thesis);
       setMarkets(prev => prev.map(market => {
         if (market.id === marketId) {
           return {

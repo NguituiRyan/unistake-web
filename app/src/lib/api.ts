@@ -1,14 +1,8 @@
 import type { 
   Market, 
   Bet, 
-  User, 
   LeaderboardUser, 
-  UserStats,
-  CreateMarketRequest,
-  ResolveMarketRequest,
-  LoginRequest,
-  LoginResponse,
-  UpdateNicknameRequest
+  CreateMarketRequest
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -40,7 +34,6 @@ async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 export async function getMarkets(): Promise<Market[]> {
   const rawMarkets = await fetcher<any[]>('/api/markets', { method: 'GET' });
   
-  // Translate Backend SQL format to Frontend React format
   return rawMarkets.map(m => ({
     id: m.id.toString(),
     title: m.title,
@@ -61,7 +54,6 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
 }
 
 export async function createMarket(data: CreateMarketRequest): Promise<Market> {
-  // Send the data exactly as the backend SQL expects it
   return fetcher<Market>('/api/markets', {
     method: 'POST',
     body: JSON.stringify({
@@ -84,15 +76,16 @@ export async function resolveMarket(data: any): Promise<any> {
   });
 }
 
-// ==================== BET APIs ====================
-export async function placeBet(email: string, marketId: string, option: 'A' | 'B', amount: number): Promise<Bet> {
+// ==================== TRADE APIs (UPDATED FOR THESIS) ====================
+export async function placeBet(email: string, marketId: string, option: 'A' | 'B', amount: number, thesis?: string): Promise<Bet> {
   return fetcher<Bet>('/api/bet', {
     method: 'POST',
     body: JSON.stringify({ 
       email: email, 
       market_id: marketId, 
       chosen_option: option, 
-      amount_kes: amount 
+      amount_kes: amount,
+      thesis: thesis // NEW: Transmit the reasoning!
     }),
   });
 }
@@ -113,9 +106,7 @@ export function calculateOdds(poolA: number, poolB: number, option: 'A' | 'B'): 
   const pool = option === 'A' ? poolA : poolB;
   return (pool / totalPool) * 100;
 }
-// ==================== MISSING EXPORTS TO FIX CRASHES ====================
 
-// 1. The Real Deposit Function
 export async function deposit(email: string, amount: number, phone: string): Promise<any> {
   return fetcher<any>('/api/deposit', {
     method: 'POST',
@@ -123,7 +114,6 @@ export async function deposit(email: string, amount: number, phone: string): Pro
   });
 }
 
-// 2. The Math Function for the Betting Modal
 export function calculatePotentialReturn(
   betAmount: number, 
   poolA: number, 
@@ -139,7 +129,6 @@ export function calculatePotentialReturn(
   return (betAmount * newTotalPool) / (targetPool + betAmount);
 }
 
-// 3. Empty placeholders for the old mock data so the other pages stop crashing
 export const mockMarkets: any[] = [];
 export const mockBets: any[] = [];
 export const mockLeaderboard: any[] = [];

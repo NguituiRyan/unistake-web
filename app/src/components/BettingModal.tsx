@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, AlertCircle, Loader2, CheckCircle2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,31 +12,29 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Market } from '@/types';
 import { calculateOdds, calculatePotentialReturn } from '@/lib/api';
-// NEW: Import user context to check authentication state
 import { useUser } from '@/contexts/UserContext'; 
 
+// NEW: Updated prop signature to support passing the thesis text back to App.tsx
 interface BettingModalProps {
   market: Market | null;
   isOpen: boolean;
   onClose: () => void;
-  onPlaceBet: (marketId: string, option: 'A' | 'B', amount: number) => Promise<void>;
+  onPlaceBet: (marketId: string, option: 'A' | 'B', amount: number, thesis?: string) => Promise<void>;
   userBalance: number;
 }
 
 export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance }: BettingModalProps) {
-  // NEW: Get auth state
   const { isAuthenticated } = useUser(); 
 
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | null>(null);
   const [amount, setAmount] = useState('');
+  const [thesis, setThesis] = useState(''); // NEW: State for the reasoning
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Calculate odds dynamically
   const probA = market ? calculateOdds(market.poolA, market.poolB, 'A') : 50;
   const probB = market ? calculateOdds(market.poolA, market.poolB, 'B') : 50;
 
-  // Calculate potential return dynamically
   const potentialReturn = useMemo(() => {
     if (!selectedOption || !amount || !market) return 0;
     
@@ -52,31 +50,30 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
 
     const betAmount = parseFloat(amount);
     
-    // THE BOUNCER INTERCEPT: If guest, trigger Sign-In and close modal immediately
     if (!isAuthenticated) {
       await onPlaceBet(market.id, selectedOption, betAmount);
-      onClose(); // Close the modal so the Sign-In screen is fully visible
+      onClose(); 
       return;
     }
 
-    // IF LOGGED IN: Proceed with normal validation and betting
     if (betAmount > userBalance) return;
 
     setIsLoading(true);
     
     try {
-      await onPlaceBet(market.id, selectedOption, betAmount);
+      // NEW: Pass the thesis up to the backend if they wrote one!
+      await onPlaceBet(market.id, selectedOption, betAmount, thesis);
       setIsSuccess(true);
       
-      // Reset after showing success
       setTimeout(() => {
         setIsSuccess(false);
         setSelectedOption(null);
         setAmount('');
+        setThesis(''); // Clear the thesis box on success
         onClose();
       }, 1500);
     } catch (error) {
-      // Error handling is done in parent
+      // Error handled in parent
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +83,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
     if (!isLoading) {
       setSelectedOption(null);
       setAmount('');
+      setThesis('');
       setIsSuccess(false);
       onClose();
     }
@@ -101,28 +99,32 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
 
   if (!market) return null;
 
+  // Verify "Skin in the game" for the thesis box
+  const hasEnoughSkinInGame = parseFloat(amount || '0') >= 50;
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-zinc-950 border border-zinc-800 p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-800">
           <DialogTitle className="text-lg font-bold text-white">
-            Place Your Bet
+            Take Position
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 py-6">
+        <div className="px-6 py-6 max-h-[80vh] overflow-y-auto">
           {isSuccess ? (
             <div className="flex flex-col items-center justify-center py-8 space-y-4">
               <div className="h-16 w-16 rounded-full bg-neon-green/20 flex items-center justify-center animate-bounce">
                 <CheckCircle2 className="h-8 w-8 text-neon-green" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-white">Bet Placed!</h3>
-                <p className="text-zinc-400">Good luck!</p>
+                <h3 className="text-lg font-semibold text-white">Trade Submitted!</h3>
+                <p className="text-zinc-400">Your position is locked.</p>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
+              
               {/* Market Title */}
               <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800">
                 <p className="text-sm text-zinc-400 mb-1">Market</p>
@@ -132,7 +134,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
               {/* Option Selection */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-zinc-300">
-                  Select Outcome
+                  Forecast
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
@@ -152,7 +154,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                         {market.optionA}
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
-                        {probA.toFixed(1)}% chance
+                        {probA.toFixed(1)}% probability
                       </p>
                     </div>
                     {selectedOption === 'A' && (
@@ -177,7 +179,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                         {market.optionB}
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
-                        {probB.toFixed(1)}% chance
+                        {probB.toFixed(1)}% probability
                       </p>
                     </div>
                     {selectedOption === 'B' && (
@@ -187,15 +189,14 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </div>
               </div>
 
-              {/* Bet Amount */}
+              {/* Amount */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="betAmount" className="text-sm font-medium text-zinc-300">
-                    Bet Amount (KES)
+                    Position Size (KES)
                   </Label>
-                  {/* NEW: Hide balance if not logged in */}
                   <span className="text-xs text-zinc-500">
-                    {isAuthenticated ? `Balance: ${formatCurrency(userBalance)}` : 'Sign in to play'}
+                    {isAuthenticated ? `Balance: ${formatCurrency(userBalance)}` : 'Sign in to trade'}
                   </span>
                 </div>
                 <div className="relative">
@@ -215,7 +216,6 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                   />
                 </div>
                 
-                {/* Quick Amount Buttons */}
                 <div className="flex gap-2">
                   {[50, 100, 500, 1000].map((quickAmount) => (
                     <button
@@ -231,11 +231,31 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </div>
               </div>
 
+              {/* NEW: The Thesis Input Area (Position Gated) */}
+              <div className="space-y-2 pt-2 border-t border-zinc-800/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <MessageSquare className="h-4 w-4 text-zinc-400" />
+                  <Label htmlFor="thesis" className="text-sm font-medium text-zinc-300">
+                    Defend Your Position (Optional)
+                  </Label>
+                </div>
+                <textarea
+                  id="thesis"
+                  value={thesis}
+                  onChange={(e) => setThesis(e.target.value)}
+                  disabled={!hasEnoughSkinInGame || isLoading}
+                  placeholder={hasEnoughSkinInGame 
+                    ? "Why are you taking this side? This builds your Conviction Score..." 
+                    : "🔒 Stake at least KES 50 to publish a thesis."}
+                  className="w-full h-20 p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-neon-blue focus:ring-1 focus:ring-neon-blue disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+                />
+              </div>
+
               {/* Potential Return */}
               {selectedOption && amount && parseFloat(amount) > 0 && (
                 <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-zinc-400">Potential Return</span>
+                    <span className="text-sm text-zinc-400">Potential Yield</span>
                     <TrendingUp className="h-4 w-4 text-neon-green" />
                   </div>
                   <p className="text-2xl font-bold text-neon-green">
@@ -247,7 +267,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </div>
               )}
 
-              {/* Insufficient Balance Warning - ONLY shows if logged in */}
+              {/* Insufficient Balance */}
               {isAuthenticated && amount && parseFloat(amount) > userBalance && (
                 <Alert className="bg-red-950/30 border-red-900/50">
                   <AlertCircle className="h-4 w-4 text-red-500" />
@@ -257,7 +277,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 </Alert>
               )}
 
-              {/* Submit Button - Dynamic text based on Auth! */}
+              {/* Submit Button */}
               <Button
                 type="submit"
                 disabled={
@@ -265,7 +285,7 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                   !selectedOption || 
                   !amount || 
                   parseFloat(amount) <= 0 || 
-                  (isAuthenticated && parseFloat(amount) > userBalance) // NEW: Only disable for balance if logged in
+                  (isAuthenticated && parseFloat(amount) > userBalance) 
                 }
                 className={`w-full h-12 font-semibold text-base transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isAuthenticated 
@@ -276,10 +296,10 @@ export function BettingModal({ market, isOpen, onClose, onPlaceBet, userBalance 
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    {isAuthenticated ? 'Placing Bet...' : 'Redirecting...'}
+                    {isAuthenticated ? 'Submitting Trade...' : 'Redirecting...'}
                   </span>
                 ) : (
-                  isAuthenticated ? 'Place Bet' : 'Sign in to Place Bet'
+                  isAuthenticated ? 'Submit Trade' : 'Sign in to Trade'
                 )}
               </Button>
             </form>
