@@ -2,13 +2,15 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import type { ReactNode } from 'react';
 import type { User } from '@/types';
 
-// 1. THE FIXED INTERFACE (Matches the new Google Login)
+// 1. UPDATED INTERFACE (Now includes Email/Password methods)
 interface UserContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean;
   login: (credential: string) => Promise<{ isNewUser: boolean; user?: User; email?: string }>;
+  loginWithEmail: (email: string, password: string) => Promise<{ isNewUser: boolean; user?: User; email?: string }>;
+  registerWithEmail: (email: string, password: string) => Promise<{ isNewUser: boolean; email?: string }>;
   logout: () => void;
   updateNickname: (nickname: string, phoneNumber: string) => Promise<void>;
   updateBalance: (newBalance: number) => void;
@@ -28,11 +30,11 @@ const formatUser = (dbUser: any): User => ({
   name: dbUser.name || dbUser.email.split('@')[0]
 });
 
-// 2. THE FIXED IMPORT USAGE (ReactNode instead of React.ReactNode)
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Initialize from LocalStorage
   useEffect(() => {
     const storedUser = localStorage.getItem('unistake_user');
     if (storedUser) {
@@ -45,6 +47,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // --- GOOGLE SIGN IN ---
   const login = useCallback(async (credential: string): Promise<{ isNewUser: boolean; user?: User; email?: string }> => {
     setIsLoading(true);
     try {
@@ -55,10 +58,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       });
       
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
+      if (!response.ok) throw new Error(data.error || 'Authentication failed');
       
       if (data.user) {
         const formattedUser = formatUser(data.user);
@@ -69,21 +69,73 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       if (data.isNewUser) {
         const pendingUser: User = {
-          id: 'pending',
-          email: data.email,
-          nickname: '',
-          phoneNumber: '',
-          balance: 0,
-          isAdmin: false,
-          name: data.email.split('@')[0]
+          id: 'pending', email: data.email, nickname: '', phoneNumber: '', balance: 0, isAdmin: false, name: data.email.split('@')[0]
         };
         setUser(pendingUser); 
         return { isNewUser: true, email: data.email };
       }
-      
       return { isNewUser: true };
     } catch (error) {
-      console.error("Login failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // --- NEW: EMAIL SIGN UP ---
+  const registerWithEmail = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Registration failed');
+
+      if (data.isNewUser) {
+        const pendingUser: User = {
+          id: 'pending', email: data.email, nickname: '', phoneNumber: '', balance: 0, isAdmin: false, name: data.email.split('@')[0]
+        };
+        setUser(pendingUser);
+        return { isNewUser: true, email: data.email };
+      }
+      return { isNewUser: false };
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // --- NEW: EMAIL LOG IN ---
+  const loginWithEmail = useCallback(async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
+
+      if (data.user) {
+        const formattedUser = formatUser(data.user);
+        setUser(formattedUser);
+        localStorage.setItem('unistake_user', JSON.stringify(formattedUser));
+        return { isNewUser: data.isNewUser, user: formattedUser };
+      } else if (data.isNewUser) {
+         // Edge case: They registered, but didn't finish the onboarding form
+         const pendingUser: User = {
+           id: 'pending', email: data.email, nickname: '', phoneNumber: '', balance: 0, isAdmin: false, name: data.email.split('@')[0]
+         };
+         setUser(pendingUser);
+         return { isNewUser: true, email: data.email };
+      }
+      throw new Error("Invalid response from server");
+    } catch (error) {
       throw error;
     } finally {
       setIsLoading(false);
@@ -155,10 +207,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     <UserContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: !!user && user.id !== 'pending', // Ensures pending users stay on onboarding!
         isLoading,
         isAdmin: user?.isAdmin || false,
         login,
+        loginWithEmail,     // <-- Added
+        registerWithEmail,  // <-- Added
         logout,
         updateNickname,
         updateBalance,
