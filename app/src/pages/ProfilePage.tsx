@@ -192,7 +192,7 @@ export function ProfilePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-white">Ksh {parseFloat(bet.amount_kes).toFixed(0)}</p>
+                    <p className="text-lg font-bold text-white">Ksh {parseFloat(bet.payout_kes).toFixed(0)}</p>
                     {isWin ? (
                       <p className="text-xs text-neon-green mt-1 font-medium bg-neon-green/10 inline-block px-2 py-1 rounded-md">Won</p>
                     ) : (

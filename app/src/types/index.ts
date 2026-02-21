@@ -12,6 +12,7 @@ export interface Market {
   winner?: 'A' | 'B' | null;
   createdAt?: string;
   traders: number;
+  winningOption?: string;
 }
 
 export interface User {

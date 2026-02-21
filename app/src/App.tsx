@@ -28,23 +28,28 @@ function AppContent() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
 
-  // FETCH REAL MARKETS: Now fetches for EVERYONE (removed isAuthenticated check)
+  // FETCH REAL MARKETS FROM THE DATABASE (With Auto-Refresh!)
   useEffect(() => {
     if (!showOnboarding) {
       const loadMarkets = async () => {
         try {
           const realMarkets = await getMarkets();
           setMarkets(realMarkets);
+          
+          // NEW: Auto-sync the user's balance in the background too!
+          if (isAuthenticated) {
+            await refreshUser();
+          }
         } catch (error) {
           console.error("Failed to load markets:", error);
         }
       };
       
-      loadMarkets(); 
+      loadMarkets(); // Fetch immediately on load
       const pollInterval = setInterval(loadMarkets, 5000); 
       return () => clearInterval(pollInterval); 
     }
-  }, [showOnboarding]);
+  }, [showOnboarding, isAuthenticated, refreshUser]); // Added dependencies here
 
   const handleSignIn = (isNewUser: boolean) => {
     setShowSignIn(false); // Close the sign-in view when done
