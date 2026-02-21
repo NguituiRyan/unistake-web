@@ -38,6 +38,7 @@ export interface Bet {
   market?: Market;
   resolvedAt?: string;
   payout?: number;
+  payout_kes?: number;
 }
 
 export interface DepositRequest {
