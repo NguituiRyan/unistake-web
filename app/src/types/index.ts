@@ -67,10 +67,12 @@ export interface LeaderboardUser {
   id: string;
   name: string;
   nickname: string;
+  email: string;
   phoneNumber: string;
   balance: number;
   totalBets: number;
   winRate: number;
+  wonBets: number;
   rank?: number;
 }
 

@@ -6,7 +6,8 @@ import {
   Target,
   Percent,
   Phone,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
 import type { LeaderboardUser } from '@/types';
 import { getLeaderboard, maskPhoneNumber } from '@/lib/api'; 
+
 export function LeaderboardPage() {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,30 +28,17 @@ export function LeaderboardPage() {
   const fetchLeaderboard = async () => {
     try {
       setIsLoading(true);
-      
-      // Fetch the real, pre-sorted data directly from PostgreSQL
       const realLeaderboard = await getLeaderboard();
-      
-      // Just map the ranks onto the array
       const rankedUsers = realLeaderboard.map((user, index) => ({ 
         ...user, 
         rank: index + 1 
       }));
-      
       setUsers(rankedUsers);
     } catch (error) {
       toast.error('Failed to load leaderboard');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const getRankStyle = (rank: number) => {
@@ -90,8 +79,6 @@ export function LeaderboardPage() {
   };
 
   const topThree = users.slice(0, 3);
-
-  // Find current user's rank securely using their email
   const currentUserRank = currentUser 
     ? users.findIndex(u => u.email === currentUser.email) + 1 
     : null;
@@ -116,7 +103,8 @@ export function LeaderboardPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Campus Leaderboard</h1>
-                <p className="text-sm text-zinc-500">Top traders by balance</p>
+                {/* UPDATED: Subtitle */}
+                <p className="text-sm text-zinc-500">Top traders by successful predictions</p>
               </div>
             </div>
             
@@ -142,7 +130,8 @@ export function LeaderboardPage() {
                     {getRankStyle(2).icon}
                     <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[1].nickname}</p>
                     <p className="text-xs sm:text-sm font-bold text-white truncate w-full text-center sm:hidden">{topThree[1].nickname.slice(0, 8)}</p>
-                    <p className="text-xs sm:text-sm font-bold text-white">{formatCurrency(topThree[1].balance)}</p>
+                    {/* UPDATED: Showing Wins instead of Balance */}
+                    <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[1].wonBets || 0} Wins</p>
                   </div>
                 </Card>
                 <div className="w-20 sm:w-28 h-16 sm:h-24 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
@@ -160,7 +149,8 @@ export function LeaderboardPage() {
                     </div>
                     <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[0].nickname}</p>
                     <p className="text-xs font-bold text-white truncate w-full text-center sm:hidden">{topThree[0].nickname.slice(0, 8)}</p>
-                    <p className="text-sm sm:text-lg font-bold text-white">{formatCurrency(topThree[0].balance)}</p>
+                    {/* UPDATED: Showing Wins instead of Balance */}
+                    <p className="text-sm sm:text-lg font-bold text-white mt-1">{topThree[0].wonBets || 0} Wins</p>
                     <div className="flex items-center gap-1 mt-1">
                       <Target className="h-3 w-3 text-zinc-500" />
                       <span className="text-xs text-zinc-500">{topThree[0].winRate}% WR</span>
@@ -179,7 +169,8 @@ export function LeaderboardPage() {
                     {getRankStyle(3).icon}
                     <p className="text-xs text-zinc-400 mt-2 truncate w-full text-center hidden sm:block">{topThree[2].nickname}</p>
                     <p className="text-xs font-bold text-white truncate w-full text-center sm:hidden">{topThree[2].nickname.slice(0, 8)}</p>
-                    <p className="text-xs sm:text-sm font-bold text-white">{formatCurrency(topThree[2].balance)}</p>
+                    {/* UPDATED: Showing Wins instead of Balance */}
+                    <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[2].wonBets || 0} Wins</p>
                   </div>
                 </Card>
                 <div className="w-20 sm:w-28 h-12 sm:h-16 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
@@ -196,15 +187,16 @@ export function LeaderboardPage() {
             <p className="text-lg sm:text-2xl font-bold text-white truncate">{users.length}</p>
             <p className="text-xs text-zinc-500 truncate">Total Traders</p>
           </Card>
+          {/* UPDATED: Tracking Total Platform Wins instead of Balance */}
           <Card className="p-3 sm:p-4 bg-zinc-900 border-zinc-800 text-center overflow-hidden">
             <p className="text-lg sm:text-2xl font-bold text-neon-green truncate">
-              {formatCurrency(users.reduce((acc, u) => acc + u.balance, 0))}
+              {users.reduce((acc, u) => acc + (u.wonBets || 0), 0)}
             </p>
-            <p className="text-xs text-zinc-500 truncate">Total Balance</p>
+            <p className="text-xs text-zinc-500 truncate">Total Wins</p>
           </Card>
           <Card className="p-3 sm:p-4 bg-zinc-900 border-zinc-800 text-center overflow-hidden">
             <p className="text-lg sm:text-2xl font-bold text-neon-blue truncate">
-              {Math.round(users.reduce((acc, u) => acc + u.winRate, 0) / users.length)}%
+              {users.length > 0 ? Math.round(users.reduce((acc, u) => acc + u.winRate, 0) / users.length) : 0}%
             </p>
             <p className="text-xs text-zinc-500 truncate">Avg Win Rate</p>
           </Card>
@@ -259,22 +251,24 @@ export function LeaderboardPage() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-500">
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-500 mt-1">
                       <span className="flex items-center gap-1 truncate">
                         <Phone className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{maskPhoneNumber(user.phoneNumber)}</span>
                       </span>
                       <span className="flex items-center gap-1 flex-shrink-0 hidden sm:flex">
                         <Target className="h-3 w-3" />
-                        {user.totalBets} bets
+                        {user.totalBets} bets placed
                       </span>
                     </div>
                   </div>
 
-                  {/* Stats */}
+                  {/* Stats - UPDATED to show Wins instead of Balance */}
                   <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-white text-sm sm:text-base truncate">{formatCurrency(user.balance)}</p>
-                    <div className="flex items-center justify-end gap-1 text-xs">
+                    <p className="font-semibold text-white text-sm sm:text-base truncate flex items-center justify-end gap-1.5">
+                      {user.wonBets || 0} <span className="text-xs text-zinc-400 font-normal">Wins</span>
+                    </p>
+                    <div className="flex items-center justify-end gap-1 text-xs mt-1">
                       <Percent className="h-3 w-3 text-zinc-500" />
                       <span className={user.winRate >= 50 ? 'text-neon-green' : 'text-zinc-500'}>
                         {user.winRate}% WR
@@ -291,8 +285,8 @@ export function LeaderboardPage() {
         <div className="mt-8 text-center">
           <p className="text-sm text-zinc-500">
             {currentUserRank && currentUserRank > 10 
-              ? "Keep trading to climb the ranks!" 
-              : "You're among the top traders!"}
+              ? "Keep analyzing markets to climb the ranks!" 
+              : "You're among the top analysts!"}
           </p>
         </div>
       </div>

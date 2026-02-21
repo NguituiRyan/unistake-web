@@ -73,11 +73,12 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
           })}
         </div>
 
-        {/* Right side - Dynamic based on Auth */}
+       {/* Right side - Dynamic based on Auth */}
         <div className="flex items-center gap-2 sm:gap-4">
           {isAuthenticated && user ? (
             // VIP ROOM: Show everything for logged-in users
             <>
+              {/* Desktop Balance */}
               <div className="hidden sm:flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 border border-zinc-800">
                 <Wallet className="h-4 w-4 text-neon-green" />
                 <span className="text-sm font-medium text-zinc-400">Balance</span>
@@ -86,6 +87,7 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
                 </span>
               </div>
               
+              {/* Mobile Balance */}
               <div className="flex sm:hidden items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 border border-zinc-800">
                 <Wallet className="h-4 w-4 text-neon-green" />
                 <span className="text-sm font-semibold text-white">
@@ -97,12 +99,12 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
                 <span className="text-sm text-zinc-500">{user.nickname}</span>
               </div>
 
+              {/* UPDATED: Deposit Button always says "Deposit" */}
               <Button
                 onClick={onDepositClick}
-                className="bg-neon-green hover:bg-green-500 text-black font-semibold px-3 sm:px-6 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                className="bg-neon-green hover:bg-green-500 text-black font-semibold px-4 sm:px-6 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
               >
-                <span className="hidden sm:inline">Deposit</span>
-                <span className="sm:hidden">+</span>
+                Deposit
               </Button>
 
               <button
@@ -114,13 +116,24 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
               </button>
             </>
           ) : (
-            // GUEST ROOM: Show the Sign In button!
-            <Button
-              onClick={onSignInClick}
-              className="bg-white hover:bg-zinc-200 text-black font-semibold px-4 sm:px-6 transition-all duration-200"
-            >
-              Sign In
-            </Button>
+            // GUEST ROOM: The "Hook" Setup
+            <div className="flex items-center gap-3">
+              {/* Show Deposit to guests to hook them, but it triggers SignIn! */}
+              <Button
+                onClick={onSignInClick}
+                className="bg-neon-green hover:bg-green-500 text-black font-semibold px-4 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+              >
+                Deposit
+              </Button>
+              
+              {/* Subtle Sign In button for desktop guests */}
+              <Button
+                onClick={onSignInClick}
+                className="hidden sm:flex bg-white hover:bg-zinc-200 text-black font-semibold px-4 transition-all duration-200"
+              >
+                Sign In
+              </Button>
+            </div>
           )}
         </div>
       </div>

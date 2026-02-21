@@ -25,15 +25,21 @@ export function SignInPage({ onSignIn }: SignInPageProps) {
         </div>
 
         {/* Login Box */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-xl flex flex-col items-center">
           <div className="flex items-center justify-center gap-2 mb-6">
             <ShieldCheck className="h-5 w-5 text-neon-green" />
             <h2 className="text-xl font-semibold text-white">Student Access</h2>
           </div>
           
-          <p className="text-sm text-zinc-400 mb-8">
-            Please sign in with your Strathmore University email address to continue.
-          </p>
+          {/* UPDATED: High-visibility email warning */}
+          <div className="w-full p-4 mb-8 rounded-lg bg-zinc-950/50 border border-zinc-800 text-center">
+            <p className="text-zinc-400 text-sm leading-relaxed">
+              Security Check: You <span className="text-white font-bold">MUST</span> use your official <br className="hidden sm:block" />
+              <span className="text-white font-bold text-base bg-zinc-800 px-2 py-1 rounded-md mx-1 shadow-sm">@strathmore.edu</span>
+              <br className="hidden sm:block" />
+              email to join the platform.
+            </p>
+          </div>
 
           <div className="flex justify-center w-full">
             <GoogleLogin
