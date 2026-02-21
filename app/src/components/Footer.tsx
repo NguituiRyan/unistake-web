@@ -1,8 +1,8 @@
-import { ShieldAlert, HeartHandshake, Scale, Mail, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, HeartHandshake, Scale, Mail, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export function Footer() {
-  const currentYear = new Date().getFullYear(); // Will automatically show 2026!
+  const currentYear = new Date().getFullYear(); 
 
   return (
     <footer className="w-full border-t border-zinc-800 bg-zinc-950 py-8 mt-auto">
@@ -23,7 +23,7 @@ export function Footer() {
             </span>
           </div>
 
-          {/* Legal & Support Links (Using Dialogs for popups!) */}
+          {/* Legal & Support Links */}
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-zinc-400">
             
             {/* TERMS OF SERVICE MODAL */}
@@ -70,13 +70,43 @@ export function Footer() {
               </DialogContent>
             </Dialog>
 
-            {/* SUPPORT LINK */}
-            <a 
-              href="mailto:unistake.contact@gmail.com" 
-              className="hover:text-neon-blue transition-colors flex items-center gap-1.5"
-            >
-              <Mail className="h-4 w-4" /> Support
-            </a>
+            {/* SUPPORT MODAL (NEW!) */}
+            <Dialog>
+              <DialogTrigger className="hover:text-neon-blue transition-colors flex items-center gap-1.5">
+                <MessageCircle className="h-4 w-4" /> Support
+              </DialogTrigger>
+              <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-300 sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-white text-xl flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-neon-blue" /> Contact Support
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-sm leading-relaxed mt-2">
+                  <p>Need help with an M-Pesa transaction, a market dispute, or just want to suggest a new feature? The UniStake team is here for you.</p>
+                  
+                  {/* Contact Buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    <a 
+                      href="https://wa.me/254741201961?text=Hey%20UniStake%20Support!%20I%20need%20help%20with..." 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 rounded-lg p-3 transition-colors font-semibold"
+                    >
+                      <MessageCircle className="h-5 w-5" /> WhatsApp
+                    </a>
+                    
+                    <a 
+                      href="mailto:unistake.contact@gmail.com" 
+                      className="flex items-center justify-center gap-2 bg-neon-blue/10 hover:bg-neon-blue/20 text-neon-blue border border-neon-blue/20 rounded-lg p-3 transition-colors font-semibold"
+                    >
+                      <Mail className="h-5 w-5" /> Email Us
+                    </a>
+                  </div>
+                  <p className="text-xs text-zinc-500 text-center mt-2">Typical response time: Under 2 hours</p>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
           </div>
         </div>
 
