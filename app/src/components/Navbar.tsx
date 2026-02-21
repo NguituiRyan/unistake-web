@@ -8,7 +8,7 @@ interface NavbarProps {
   currentPage?: PageType;
   onPageChange?: (page: PageType) => void;
   onDepositClick: () => void;
-  onSignInClick: () => void; // <-- NEW: Added this prop for guests!
+  onSignInClick: () => void; 
 }
 
 export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, onSignInClick }: NavbarProps) {
@@ -22,7 +22,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
     }).format(amount);
   };
 
-  // NEW: Dynamically build nav items based on authentication!
   const allNavItems = [
     { id: 'markets' as PageType, label: 'Markets', icon: TrendingUp },
     { id: 'leaderboard' as PageType, label: 'Leaderboard', icon: Trophy },
@@ -38,17 +37,17 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/80">
       <div className="container flex h-16 items-center justify-between px-4 mx-auto max-w-6xl">
-        {/* Logo */}
+        
+        {/* UPDATED: Custom Logo */}
         <div 
-          className="flex items-center gap-2 cursor-pointer"
+          className="flex items-center gap-2 cursor-pointer transition-transform hover:scale-105 active:scale-95"
           onClick={() => onPageChange?.('markets')}
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-neon-blue to-blue-600">
-            <TrendingUp className="h-5 w-5 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
-            Uni<span className="text-neon-blue">Stake</span>
-          </span>
+          <img 
+            src="/logo.png" 
+            alt="UniStake Logo" 
+            className="h-8 sm:h-10 w-auto object-contain" 
+          />
         </div>
 
         {/* Navigation Links - Desktop */}
@@ -76,7 +75,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
        {/* Right side - Dynamic based on Auth */}
         <div className="flex items-center gap-2 sm:gap-4">
           {isAuthenticated && user ? (
-            // VIP ROOM: Show everything for logged-in users
             <>
               {/* Desktop Balance */}
               <div className="hidden sm:flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 border border-zinc-800">
@@ -99,7 +97,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
                 <span className="text-sm text-zinc-500">{user.nickname}</span>
               </div>
 
-              {/* UPDATED: Deposit Button always says "Deposit" */}
               <Button
                 onClick={onDepositClick}
                 className="bg-neon-green hover:bg-green-500 text-black font-semibold px-4 sm:px-6 transition-all duration-200 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
@@ -116,7 +113,7 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
               </button>
             </>
           ) : (
-            // GUEST ROOM: The "Hook" Setup
+            // GUEST ROOM
             <div className="flex items-center gap-2 sm:gap-3">
               <Button
                 onClick={onSignInClick}
@@ -156,7 +153,6 @@ export function Navbar({ currentPage = 'markets', onPageChange, onDepositClick, 
               );
             })}
             
-            {/* Show Logout only on mobile if logged in */}
             {isAuthenticated && (
               <button
                 onClick={logout}

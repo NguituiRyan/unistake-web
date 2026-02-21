@@ -1,11 +1,12 @@
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { useUser } from '@/contexts/UserContext';
-import { GraduationCap, ShieldCheck, ArrowLeft } from 'lucide-react'; // <-- Added ArrowLeft
+// Removed GraduationCap from here since we are using your logo now!
+import { ShieldCheck, ArrowLeft } from 'lucide-react'; 
 
 interface SignInPageProps {
   onSignIn: (isNewUser: boolean) => void;
-  onBack: () => void; // <-- NEW: Added onBack prop
+  onBack: () => void; 
 }
 
 export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
@@ -14,7 +15,7 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
       
-      {/* NEW: The Back Button Escape Hatch */}
+      {/* The Back Button Escape Hatch */}
       <button
         onClick={onBack}
         className="absolute top-6 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
@@ -24,15 +25,15 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
       </button>
 
       <div className="w-full max-w-md space-y-8 text-center mt-12 sm:mt-0">
-        {/* Logo Area */}
-        <div className="flex flex-col items-center">
-          <div className="h-16 w-16 bg-neon-blue rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(59,130,246,0.5)]">
-            <GraduationCap className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Uni<span className="text-neon-blue">Stake</span>
-          </h1>
-          <p className="text-zinc-400">Campus Prediction Markets</p>
+        
+        {/* UPDATED: Custom Logo Area */}
+        <div className="flex flex-col items-center mb-6">
+          <img 
+            src="/logo.png" 
+            alt="UniStake Logo" 
+            className="h-16 sm:h-20 w-auto object-contain mb-4 drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]" 
+          />
+          <p className="text-zinc-400 font-medium">Campus Prediction Markets</p>
         </div>
 
         {/* Login Box */}
