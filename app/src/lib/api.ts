@@ -54,11 +54,14 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
   return fetcher<LeaderboardUser[]>('/api/leaderboard', { method: 'GET' });
 }
 
-export async function createMarket(email: string, data: CreateMarketRequest): Promise<Market> {
-  return fetcher<Market>('/api/markets', {
+export async function createMarket(email: string, data: any): Promise<any> {
+  const response = await fetch('https://unistake-backend.onrender.com/api/markets', { // Make sure this URL is correct!
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
-      email: email, // <--- Now passing the user's email to pay the fee!
+      email: email,
       title: data.title,
       option_a: data.optionA,
       option_b: data.optionB,
@@ -66,6 +69,13 @@ export async function createMarket(email: string, data: CreateMarketRequest): Pr
       end_date: data.endDate
     }),
   });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to create market');
+  }
+
+  return response.json();
 }
 
 export async function resolveMarket(data: any): Promise<any> {
