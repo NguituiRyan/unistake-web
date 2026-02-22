@@ -54,7 +54,6 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
 }
 
 export async function createMarket(email: string, data: any): Promise<any> {
-  // 🚨 SAFETY NET: If the frontend forgets the email, force the Admin email!
   const finalEmail = email || "nguitui.kamau@gmail.com"; 
 
   const response = await fetch('https://unistake-backend.onrender.com/api/markets', {
@@ -65,7 +64,7 @@ export async function createMarket(email: string, data: any): Promise<any> {
     body: JSON.stringify({
       email: finalEmail, 
       title: data.title,
-      option_a: data.optionA || data.option_a, // Catches it regardless of how it's formatted
+      option_a: data.optionA || data.option_a,
       option_b: data.optionB || data.option_b,
       category: data.category,
       end_date: data.endDate || data.end_date

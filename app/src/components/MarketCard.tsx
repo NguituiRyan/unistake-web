@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, Users, Clock, Share2, MessageSquare, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { Market, Thesis} from '@/types';
 import { calculateOdds, getTheses } from '@/lib/api';
-import { formatDistanceToNow } from 'date-fns'; // We use this for "2 hours ago" formatting
+import { formatDistanceToNow } from 'date-fns';
 
 interface MarketCardProps {
   market: Market;
@@ -18,6 +18,35 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
   const [isDebateOpen, setIsDebateOpen] = useState(false);
   const [theses, setTheses] = useState<Thesis[]>([]);
   const [isLoadingTheses, setIsLoadingTheses] = useState(false);
+  const [hasNewTheses, setHasNewTheses] = useState(false);
+
+  // 1. Check for new Theses (Notifications)
+  useEffect(() => {
+    const checkNotifications = async () => {
+      try {
+        // We fetch the theses briefly to check the latest timestamp
+        const latestTheses = await getTheses(market.id);
+        if (latestTheses.length === 0) return;
+
+        const lastRead = localStorage.getItem(`last_read_debate_${market.id}`);
+        const newestTimestamp = new Date(latestTheses[0].createdAt).getTime();
+
+        if (!lastRead || newestTimestamp > Number(lastRead)) {
+          setHasNewTheses(true);
+        }
+        
+        // Update the state so the data is ready if they click open
+        setTheses(latestTheses);
+      } catch (err) {
+        console.error("Notif check failed", err);
+      }
+    };
+
+    checkNotifications();
+    // Refresh check every 30 seconds for live-feeling updates
+    const interval = setInterval(checkNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [market.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
@@ -47,13 +76,18 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
   };
 
   const toggleDebate = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevents the betting modal from opening!
+    e.stopPropagation(); 
     
     if (!isDebateOpen) {
       setIsLoadingTheses(true);
       try {
         const fetchedTheses = await getTheses(market.id);
         setTheses(fetchedTheses);
+        
+        // 2. Mark as read when opened
+        setHasNewTheses(false);
+        localStorage.setItem(`last_read_debate_${market.id}`, Date.now().toString());
+        
       } catch (error) {
         console.error("Failed to load theses:", error);
       } finally {
@@ -132,15 +166,25 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
             >
               <Share2 className="h-3.5 w-3.5" />
             </button>
-            {/* NEW: Toggle Debate Button */}
+
+            {/* 🔥 UPDATED: Toggle Debate Button with Pulsing Notification Dot */}
             <button 
               onClick={toggleDebate}
-              className={`flex items-center gap-1 p-1.5 rounded-md transition-colors ${
-                isDebateOpen ? 'text-neon-blue bg-neon-blue/10' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'
+              className={`relative flex items-center gap-1 p-1.5 rounded-md transition-colors ${
+                isDebateOpen ? 'text-blue-400 bg-blue-500/10' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'
               }`}
               title="View Debate Arena"
             >
               <MessageSquare className="h-3.5 w-3.5" />
+              
+              {/* 🟢 BLINKING DOT: Only shows if hasNewTheses is true and debate is closed */}
+              {hasNewTheses && !isDebateOpen && (
+                <span className="absolute top-1 right-1 flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                </span>
+              )}
+              
               {isDebateOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
           </div>
@@ -151,7 +195,7 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
       {isDebateOpen && (
         <div 
           className="border-t border-zinc-800 bg-zinc-950/50 p-3 flex-grow cursor-default"
-          onClick={(e) => e.stopPropagation()} // Keeps betting modal from opening if they click inside the arena
+          onClick={(e) => e.stopPropagation()} 
         >
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare className="h-4 w-4 text-zinc-400" />
@@ -166,8 +210,6 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
             <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
               {theses.map((thesis) => (
                 <div key={thesis.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 relative overflow-hidden">
-                  
-                  {/* Colored indicator bar on the left based on their position */}
                   <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                     thesis.chosenOption === 'A' ? 'bg-blue-500' : 'bg-rose-500'
                   }`} />
@@ -180,7 +222,6 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
                       </span>
                     </div>
                     
-                    {/* Position Badge */}
                     <div className="flex flex-col items-end">
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
                         thesis.chosenOption === 'A' 
@@ -195,7 +236,6 @@ export function MarketCard({ market, onClick }: MarketCardProps) {
                     </div>
                   </div>
                   
-                  {/* The actual argument */}
                   <p className="text-xs text-zinc-300 leading-relaxed pl-2 italic">
                     "{thesis.content}"
                   </p>
