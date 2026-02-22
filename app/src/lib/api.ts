@@ -54,10 +54,11 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
   return fetcher<LeaderboardUser[]>('/api/leaderboard', { method: 'GET' });
 }
 
-export async function createMarket(data: CreateMarketRequest): Promise<Market> {
+export async function createMarket(email: string, data: CreateMarketRequest): Promise<Market> {
   return fetcher<Market>('/api/markets', {
     method: 'POST',
     body: JSON.stringify({
+      email: email, // <--- Now passing the user's email to pay the fee!
       title: data.title,
       option_a: data.optionA,
       option_b: data.optionB,

@@ -13,12 +13,14 @@ import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { Footer } from '@/components/Footer';
 import type { Market } from '@/types';
 
-import { deposit, placeBet, getMarkets } from '@/lib/api';
+// Updated imports to include createMarket
+import { deposit, placeBet, getMarkets, createMarket } from '@/lib/api';
 
 type PageType = 'markets' | 'admin' | 'profile' | 'leaderboard';
 
 function AppContent() {
-  const { user, isAuthenticated, refreshUser } = useUser();
+  // NEW: Destructured updateBalance to handle the 200 KES fee locally
+  const { user, isAuthenticated, refreshUser, updateBalance } = useUser();
   
   // State
   const [currentPage, setCurrentPage] = useState<PageType>('markets');
@@ -28,7 +30,7 @@ function AppContent() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
 
-  // FETCH REAL MARKETS FROM THE DATABASE (With Auto-Refresh!)
+  // FETCH REAL MARKETS FROM THE DATABASE
   useEffect(() => {
     if (!showOnboarding) {
       const loadMarkets = async () => {
@@ -44,7 +46,7 @@ function AppContent() {
         }
       };
       
-      loadMarkets(); // Fetch immediately on load
+      loadMarkets(); 
       const pollInterval = setInterval(loadMarkets, 5000); 
       return () => clearInterval(pollInterval); 
     }
@@ -60,7 +62,7 @@ function AppContent() {
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
     toast.success('Welcome to UniStake!', {
-      description: 'Start exploring markets and place your first bet.',
+      description: 'Start exploring markets and place your first trade.',
     });
   };
 
@@ -86,7 +88,6 @@ function AppContent() {
 
   const handlePlaceBet = useCallback(async (marketId: string, option: 'A' | 'B', amount: number, thesis?: string) => {
     if (!user) {
-      // THE BOUNCER: If guest tries to place a bet, show the sign-in screen!
       setShowSignIn(true);
       return;
     }
@@ -105,34 +106,64 @@ function AppContent() {
         return market;
       }));
       
-      toast.success('Bet placed successfully!', {
+      toast.success('Position opened successfully!', {
         icon: <CheckCircle2 className="h-4 w-4 text-neon-green" />,
       });
       await refreshUser();
     } catch (error) {
-      toast.error('Failed to place bet', {
+      toast.error('Failed to open position', {
         description: error instanceof Error ? error.message : 'Please try again',
       });
       throw error;
     }
-  }, [user, refreshUser, setMarkets]);
+  }, [user, refreshUser]);
+
+  // --- NEW: USER GENERATED MARKETS LOGIC ---
+  const handleCreateMarket = useCallback(async (marketData: any) => {
+    if (!user) {
+      setShowSignIn(true);
+      return;
+    }
+    
+    try {
+      // 1. Create market in DB (Backend will deduct 200 KES)
+      const newMarket = await createMarket(user.email, marketData);
+      
+      // 2. Add to local state immediately
+      setMarkets(prev => [newMarket, ...prev]);
+      
+      // 3. Update local wallet balance immediately
+      updateBalance(user.balance - 200);
+      
+      // 4. Double check with server balance
+      await refreshUser();
+    } catch (error: any) {
+      throw error; 
+    }
+  }, [user, updateBalance, refreshUser]);
 
   const renderPage = () => {
+    const commonProps = {
+      markets,
+      user,
+      onPlaceBet: handlePlaceBet,
+      onCreateMarket: handleCreateMarket // Passing the new function
+    };
+
     switch (currentPage) {
       case 'markets':
-        return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
+        return <MarketsPage {...commonProps} />;
       case 'leaderboard':
         return <LeaderboardPage />;
       case 'admin':
-        return user?.isAdmin ? <AdminPage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
+        return user?.isAdmin ? <AdminPage /> : <MarketsPage {...commonProps} />;
       case 'profile':
-        return user ? <ProfilePage /> : <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
+        return user ? <ProfilePage /> : <MarketsPage {...commonProps} />;
       default:
-        return <MarketsPage markets={markets} user={user} onPlaceBet={handlePlaceBet} />;
+        return <MarketsPage {...commonProps} />;
     }
   };
 
-  // ON-DEMAND SIGN IN
   if (showSignIn && !isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col">
@@ -152,7 +183,6 @@ function AppContent() {
     );
   }
 
-  // --- THE FIX: Only ONE correct return block here! ---
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col"> 
       <Toaster 
@@ -170,15 +200,12 @@ function AppContent() {
         onSignInClick={() => setShowSignIn(true)} 
       />
 
-      {/* Main content expands to push the footer down */}
       <div className="flex-1">
         {renderPage()}
       </div>
 
-      {/* The Footer firmly planted at the bottom */}
       <Footer />
 
-      {/* Modals/Drawers stay out of the visual flow */}
       <DepositDrawer
         isOpen={isDepositOpen}
         onClose={() => setIsDepositOpen(false)}
