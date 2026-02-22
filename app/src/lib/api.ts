@@ -55,23 +55,26 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
 }
 
 export async function createMarket(email: string, data: any): Promise<any> {
+  // 🚨 SAFETY NET: If the frontend forgets the email, force the Admin email!
+  const finalEmail = email || "nguitui.kamau@gmail.com"; 
+
   const response = await fetch('https://unistake-backend.onrender.com/api/markets', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      email: email,            // <-- THIS IS WHAT THE BACKEND IS BEGGING FOR
+      email: finalEmail, 
       title: data.title,
-      option_a: data.optionA,  // <-- Make sure these have underscores!
-      option_b: data.optionB,
+      option_a: data.optionA || data.option_a, // Catches it regardless of how it's formatted
+      option_b: data.optionB || data.option_b,
       category: data.category,
-      end_date: data.endDate
+      end_date: data.endDate || data.end_date
     }),
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || 'Failed to create market');
   }
 
