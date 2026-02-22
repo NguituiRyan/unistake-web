@@ -13,8 +13,7 @@ interface SignInPageProps {
 }
 
 export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
-  const { login } = useUser(); // We will add email login to your context next!
-  
+  const { login, loginWithEmail, registerWithEmail } = useUser();  
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,6 +21,8 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("1. Button clicked! Mode:", isSignUp ? "Sign Up" : "Log In");
+    console.log("2. Email:", email, "| Password length:", password.length);
     
     if (!email || !password) {
       toast.error('Please fill in all fields');
@@ -35,14 +36,28 @@ export function SignInPage({ onSignIn, onBack }: SignInPageProps) {
 
     setIsLoading(true);
     try {
-      // NOTE: We will connect this to your backend in the very next step!
-      toast.info(`Connecting to ${isSignUp ? 'Sign Up' : 'Login'} backend...`);
+      console.log("3. Attempting to contact backend...");
+      let result;
       
-      // Simulated delay for UI feel until we link the API
-      setTimeout(() => setIsLoading(false), 1000); 
+      if (isSignUp) {
+        if (!registerWithEmail) throw new Error("registerWithEmail function is missing from Context!");
+        result = await registerWithEmail(email, password);
+      } else {
+        if (!loginWithEmail) throw new Error("loginWithEmail function is missing from Context!");
+        result = await loginWithEmail(email, password);
+      }
+      
+      console.log("4. Backend responded with success!", result);
+      
+      onSignIn(result.isNewUser);
+      toast.success(isSignUp ? 'Account created!' : 'Welcome back!');
+      
     } catch (err: any) {
+      console.error("❌ ERROR CAUGHT:", err);
       toast.error(err.message || 'Authentication failed');
+    } finally {
       setIsLoading(false);
+      console.log("5. Loading state cleared.");
     }
   };
 
