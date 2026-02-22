@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Target, TrendingUp, Activity, History, ShieldCheck, ArrowUpRight, ArrowDownRight, CircleSlash } from 'lucide-react';
+import { Target, TrendingUp, Activity, History, ShieldCheck, ArrowUpRight, ArrowDownRight, CircleSlash, Pencil, Loader2, X, Check } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-// The interface matching our backend /api/bets endpoint
 interface BetHistory {
   id: number;
   title: string;
@@ -20,9 +21,14 @@ interface BetHistory {
 }
 
 export function ProfilePage() {
-  const { user } = useUser();
+  const { user, updateNickname } = useUser();
   const [history, setHistory] = useState<BetHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // --- EDIT NAME STATE ---
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(user?.nickname || '');
+  const [isSavingName, setIsSavingName] = useState(false);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -42,7 +48,33 @@ export function ProfilePage() {
     fetchHistory();
   }, [user]);
 
-  // --- CALCULATE TRADER STATS DYNAMICALLY ---
+  // --- SAVE NEW NAME HANDLER ---
+  const handleSaveName = async () => {
+    if (!user) return;
+    const trimmed = editNameValue.trim();
+    
+    if (trimmed.length < 3) {
+      toast.error('Name must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9 ]+$/.test(trimmed)) {
+      toast.error('Only letters, numbers, and spaces allowed');
+      return;
+    }
+
+    setIsSavingName(true);
+    try {
+      // Pass the new name, but keep their existing phone number!
+      await updateNickname(trimmed, user.phoneNumber);
+      toast.success('Display name updated!');
+      setIsEditingName(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   const stats = useMemo(() => {
     let resolvedCount = 0;
     let wonCount = 0;
@@ -56,23 +88,16 @@ export function ProfilePage() {
       if (trade.status === 'Won') {
         wonCount++;
         resolvedCount++;
-        totalYield += (trade.payout_kes - stake); // Pure profit
+        totalYield += (trade.payout_kes - stake); 
       } else if (trade.status === 'Lost') {
         resolvedCount++;
-        totalYield -= stake; // Pure loss
+        totalYield -= stake; 
       }
-      // We ignore 'Pending' and 'Refunded' for accuracy math!
     });
 
     const convictionScore = resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : 0;
 
-    return {
-      convictionScore,
-      resolvedCount,
-      wonCount,
-      totalStaked,
-      totalYield
-    };
+    return { convictionScore, resolvedCount, wonCount, totalStaked, totalYield };
   }, [history]);
 
   const formatCurrency = (amount: number) => {
@@ -92,8 +117,40 @@ export function ProfilePage() {
           <ShieldCheck className="h-10 w-10 text-neon-blue" />
         </div>
         
-        <div className="text-center sm:text-left z-10">
-          <h1 className="text-2xl font-bold text-white mb-1">{user.nickname}</h1>
+        <div className="text-center sm:text-left z-10 w-full">
+          
+          {/* THE EDITABLE NAME ROW */}
+          <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 h-9">
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  className="h-8 w-48 bg-zinc-950 border-zinc-700 text-white focus:border-neon-blue"
+                  autoFocus
+                  disabled={isSavingName}
+                />
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:bg-green-500/10 hover:text-green-400" onClick={handleSaveName} disabled={isSavingName}>
+                  {isSavingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-zinc-500 hover:bg-zinc-800 hover:text-white" onClick={() => { setIsEditingName(false); setEditNameValue(user.nickname); }} disabled={isSavingName}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-white">{user.nickname}</h1>
+                <button 
+                  onClick={() => setIsEditingName(true)}
+                  className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+                  title="Edit Display Name"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+
           <p className="text-zinc-400 text-sm mb-3">{user.email}</p>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800">
             <span className="text-xs text-zinc-500">Available Capital:</span>
@@ -109,8 +166,6 @@ export function ProfilePage() {
       </h2>
       
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
-        
-        {/* The Conviction Score (Accuracy) */}
         <Card className="bg-zinc-900 border-zinc-800 p-4 relative overflow-hidden group">
           <div className={`absolute inset-0 opacity-10 transition-opacity group-hover:opacity-20 ${
             stats.convictionScore >= 70 ? 'bg-neon-green' : stats.convictionScore >= 40 ? 'bg-yellow-500' : 'bg-rose-500'
@@ -159,7 +214,6 @@ export function ProfilePage() {
           </div>
           <p className="text-[10px] text-zinc-500 mt-1">Total capital deployed</p>
         </Card>
-
       </div>
 
       {/* TRADING LEDGER */}
@@ -177,8 +231,6 @@ export function ProfilePage() {
           <div className="divide-y divide-zinc-800">
             {history.map((trade) => (
               <div key={trade.id} className="p-4 sm:p-5 hover:bg-zinc-800/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                
-                {/* Market Info */}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
@@ -196,7 +248,6 @@ export function ProfilePage() {
                   <h4 className="text-sm font-medium text-white line-clamp-2">{trade.title}</h4>
                 </div>
 
-                {/* Trade Math */}
                 <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-64 shrink-0 bg-zinc-950/50 sm:bg-transparent p-3 sm:p-0 rounded-lg">
                   <div className="text-left sm:text-right">
                     <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-0.5">Position</p>
@@ -220,7 +271,6 @@ export function ProfilePage() {
                     </p>
                   </div>
                 </div>
-
               </div>
             ))}
           </div>

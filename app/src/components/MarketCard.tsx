@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { TrendingUp, Users, Clock, Share2, MessageSquare, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import type { Market } from '@/types';
-import { calculateOdds, getTheses, Thesis } from '@/lib/api';
+import type { Market, Thesis} from '@/types';
+import { calculateOdds, getTheses } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns'; // We use this for "2 hours ago" formatting
 
 interface MarketCardProps {
