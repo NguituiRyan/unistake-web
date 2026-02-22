@@ -2,7 +2,6 @@ import type {
   Market, 
   Bet, 
   LeaderboardUser, 
-  CreateMarketRequest,
   Thesis
 } from '@/types';
 
