@@ -1,306 +1,232 @@
-import { useState, useEffect } from 'react';
-import { User, Wallet, Target, TrendingUp, TrendingDown, Clock, Pencil, Mail, Phone, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Target, TrendingUp, Activity, History, ShieldCheck, ArrowUpRight, ArrowDownRight, CircleSlash } from 'lucide-react';
 import { useUser } from '@/contexts/UserContext';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 
+// The interface matching our backend /api/bets endpoint
+interface BetHistory {
+  id: number;
+  title: string;
+  chosen_option: 'A' | 'B';
+  amount_kes: string;
+  placed_at: string;
+  is_resolved: boolean;
+  winning_option: string | null;
+  option_a: string;
+  option_b: string;
+  status: 'Won' | 'Lost' | 'Pending' | 'Refunded';
+  payout_kes: number;
+}
+
 export function ProfilePage() {
-  const { user, refreshUser } = useUser();
-  const [bets, setBets] = useState<any[]>([]);
+  const { user } = useUser();
+  const [history, setHistory] = useState<BetHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Withdrawal States
-  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   useEffect(() => {
-    const fetchBets = async () => {
-      if (!user) return;
+    const fetchHistory = async () => {
+      if (!user?.email) return;
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/bets?email=${encodeURIComponent(user.email)}`);
-        const data = await response.json();
-        setBets(data);
+        const res = await fetch(`https://unistake-backend.onrender.com/api/bets?email=${user.email}`);
+        if (!res.ok) throw new Error('Failed to fetch history');
+        const data = await res.json();
+        setHistory(data);
       } catch (error) {
-        console.error("Failed to load bets:", error);
+        toast.error('Could not load trading history');
       } finally {
         setIsLoading(false);
       }
     };
-    fetchBets();
+
+    fetchHistory();
   }, [user]);
 
-  const handleWithdraw = async () => {
-    if (!user || !withdrawAmount) return;
-    const amount = parseFloat(withdrawAmount);
-    
-    if (amount > user.balance) {
-      return toast.error("Insufficient balance!");
-    }
+  // --- CALCULATE TRADER STATS DYNAMICALLY ---
+  const stats = useMemo(() => {
+    let resolvedCount = 0;
+    let wonCount = 0;
+    let totalStaked = 0;
+    let totalYield = 0;
 
-    setIsWithdrawing(true);
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/withdraw`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, amount }),
-      });
+    history.forEach(trade => {
+      const stake = parseFloat(trade.amount_kes);
+      totalStaked += stake;
 
-      if (!response.ok) throw new Error("Failed to process withdrawal");
+      if (trade.status === 'Won') {
+        wonCount++;
+        resolvedCount++;
+        totalYield += (trade.payout_kes - stake); // Pure profit
+      } else if (trade.status === 'Lost') {
+        resolvedCount++;
+        totalYield -= stake; // Pure loss
+      }
+      // We ignore 'Pending' and 'Refunded' for accuracy math!
+    });
 
-      toast.success(`Successfully withdrew Ksh ${amount} (Demo)`);
-      setWithdrawAmount('');
-      setIsWithdrawOpen(false);
-      await refreshUser(); // Instantly updates the balance on screen!
-    } catch (error) {
-      toast.error("Withdrawal failed. Please try again.");
-    } finally {
-      setIsWithdrawing(false);
-    }
+    const convictionScore = resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : 0;
+
+    return {
+      convictionScore,
+      resolvedCount,
+      wonCount,
+      totalStaked,
+      totalYield
+    };
+  }, [history]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', minimumFractionDigits: 0 }).format(amount);
   };
 
   if (!user) return null;
 
-  // Categorize Bets
-  const activeBets = bets.filter(b => !b.is_resolved);
-  const pastBets = bets.filter(b => b.is_resolved);
-  
-  // Calculate Stats using the new backend 'status' field
-  const wonBets = pastBets.filter(b => b.status === 'Won');
-  const lostBets = pastBets.filter(b => b.status === 'Lost');
-  const refundedBets = pastBets.filter(b => b.status === 'Refunded');
-  
-  const definitivePastBets = wonBets.length + lostBets.length;
-  const winRate = definitivePastBets > 0 
-    ? Math.round((wonBets.length / definitivePastBets) * 100) 
-    : 0;
-  
-  // REAL Profit Calculation: Payouts Received - Stakes Placed
-  const totalStakesResolved = pastBets.reduce((sum, bet) => sum + parseFloat(bet.amount_kes), 0);
-  const totalPayoutsReceived = pastBets.reduce((sum, bet) => sum + parseFloat(bet.payout_kes || 0), 0);
-  const profit = totalPayoutsReceived - totalStakesResolved;
-
   return (
-    <main className="container mx-auto max-w-4xl px-4 py-8">
-      {/* Profile Header */}
-      <div className="flex items-start gap-6 mb-8">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-neon-blue/20 to-neon-blue/5 border border-neon-blue/20 flex-shrink-0">
-          <User className="h-8 w-8 text-neon-blue" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold text-white">{user.nickname || 'Phantom'}</h1>
-            <button className="p-1 hover:bg-zinc-800 rounded-md transition-colors">
-              <Pencil className="h-4 w-4 text-zinc-500 hover:text-white" />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-400 mb-1">
-            <Mail className="h-4 w-4" />
-            {user.email}
-          </div>
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            <Phone className="h-4 w-4" />
-            {user.phoneNumber || 'No phone number linked'}
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
+      
+      {/* HEADER */}
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-neon-blue/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         
-        {/* UPDATED: Balance Card with Withdraw Button */}
-        <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-zinc-500">Current Balance</p>
-              <Wallet className="h-4 w-4 text-neon-green" />
-            </div>
-            <p className="text-2xl font-bold text-white mb-4">
-              Ksh {user.balance.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-            </p>
-          </div>
-          <Button 
-            onClick={() => setIsWithdrawOpen(true)}
-            variant="outline" 
-            className="w-full border-zinc-700 text-white hover:bg-zinc-800 transition-colors"
-          >
-            Withdraw Funds
-          </Button>
+        <div className="h-20 w-20 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow-lg shrink-0">
+          <ShieldCheck className="h-10 w-10 text-neon-blue" />
         </div>
-
-        <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-zinc-500">Total Bets Placed</p>
-            <Target className="h-4 w-4 text-neon-blue" />
+        
+        <div className="text-center sm:text-left z-10">
+          <h1 className="text-2xl font-bold text-white mb-1">{user.nickname}</h1>
+          <p className="text-zinc-400 text-sm mb-3">{user.email}</p>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800">
+            <span className="text-xs text-zinc-500">Available Capital:</span>
+            <span className="text-sm font-bold text-neon-green">{formatCurrency(user.balance)}</span>
           </div>
-          <p className="text-2xl font-bold text-white">{bets.length}</p>
-          <p className="text-sm text-zinc-500 mt-1">
-            {wonBets.length} won • {lostBets.length} lost
-          </p>
-        </div>
-
-        <div className="p-6 rounded-2xl bg-zinc-900 border border-zinc-800">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm font-medium text-zinc-500">Profit / Loss</p>
-            {profit >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-neon-green" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            )}
-          </div>
-          <p className={`text-2xl font-bold ${profit >= 0 ? 'text-neon-green' : 'text-red-500'}`}>
-            {profit > 0 ? '+' : ''}Ksh {profit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-          </p>
-          <p className="text-sm text-zinc-500 mt-1">{winRate}% win rate</p>
         </div>
       </div>
 
-      {/* Tabs Section */}
-      <Tabs defaultValue="active" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 bg-zinc-900 border border-zinc-800 p-1 mb-6 rounded-xl h-auto">
-          <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-500 py-3">
-            <Clock className="h-4 w-4 mr-2" />
-            Active Bets
-          </TabsTrigger>
-          <TabsTrigger value="past" className="rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-500 py-3">
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Past Payouts
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ACTIVE BETS CONTENT */}
-        <TabsContent value="active" className="space-y-4">
-          {isLoading ? (
-            <p className="text-zinc-500 text-center py-8">Loading your ledger...</p>
-          ) : activeBets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Clock className="h-12 w-12 text-zinc-800 mb-4" />
-              <p className="text-white font-medium mb-1">No Active Bets</p>
-              <p className="text-sm text-zinc-500">Place a bet to see it here</p>
-            </div>
-          ) : (
-            activeBets.map((bet) => {
-              const pickName = bet.chosen_option === 'A' ? bet.option_a : (bet.chosen_option === 'B' ? bet.option_b : bet.chosen_option);
-              return (
-                <div key={bet.id} className="p-5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between">
-                  <div>
-                    <h4 className="text-white font-medium mb-1">{bet.title}</h4>
-                    <p className="text-sm text-zinc-400">
-                      Your Pick: <span className="text-neon-blue font-semibold">{pickName}</span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-white">Ksh {parseFloat(bet.amount_kes).toFixed(0)}</p>
-                    <p className="text-xs text-yellow-500 mt-1">Pending Resolution</p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </TabsContent>
-
-        {/* PAST PAYOUTS CONTENT */}
-        <TabsContent value="past" className="space-y-4">
-          {isLoading ? (
-            <p className="text-zinc-500 text-center py-8">Loading your ledger...</p>
-          ) : pastBets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <CheckCircle2 className="h-12 w-12 text-zinc-800 mb-4" />
-              <p className="text-white font-medium mb-1">No Past Payouts</p>
-              <p className="text-sm text-zinc-500">Resolved markets will appear here</p>
-            </div>
-          ) : (
-            pastBets.map((bet) => {
-              const isWin = bet.status === 'Won';
-              const isRefund = bet.status === 'Refunded';
-              const pickName = bet.chosen_option === 'A' ? bet.option_a : (bet.chosen_option === 'B' ? bet.option_b : bet.chosen_option);
-              const winName = bet.winning_option === 'A' ? bet.option_a : (bet.winning_option === 'B' ? bet.option_b : bet.winning_option);
-              
-              return (
-                <div key={bet.id} className="p-5 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-between opacity-80">
-                  <div>
-                    <h4 className="text-white font-medium mb-1">{bet.title}</h4>
-                    <p className="text-sm text-zinc-400">
-                      Your Pick: <span className="font-semibold text-white">{pickName}</span>
-                    </p>
-                    {!isRefund && (
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Winning Result: {winName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-white">Ksh {parseFloat(bet.payout_kes).toFixed(0)}</p>
-                    {isRefund ? (
-                      <p className="text-xs text-zinc-400 mt-1 font-medium bg-zinc-800 inline-block px-2 py-1 rounded-md">Refunded</p>
-                    ) : isWin ? (
-                      <p className="text-xs text-neon-green mt-1 font-medium bg-neon-green/10 inline-block px-2 py-1 rounded-md">Won</p>
-                    ) : (
-                      <p className="text-xs text-red-500 mt-1 font-medium bg-red-500/10 inline-block px-2 py-1 rounded-md">Lost</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </TabsContent>
-      </Tabs>
-
-      {/* WITHDRAW MODAL */}
-      <Dialog open={isWithdrawOpen} onOpenChange={setIsWithdrawOpen}>
-        <DialogContent className="bg-zinc-950 border-zinc-800 text-white sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Withdraw to M-Pesa</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 pt-4">
-            
-            {/* Disclaimer Box */}
-            <div className="bg-blue-900/20 border border-blue-900/50 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-300 leading-relaxed">
-                <span className="font-semibold text-blue-200">Demo Mode Active:</span> This will instantly deduct funds from your UniStake wallet, but live M-Pesa API integration is coming in the next update.
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-zinc-400">Amount to Withdraw (KES)</Label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-medium">Ksh</span>
-                <Input
-                  type="number"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-12 h-14 bg-zinc-900 border-zinc-800 text-white text-lg focus:border-neon-blue"
-                  max={user.balance}
-                />
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-zinc-500">Min. withdrawal: Ksh 100</span>
-                <span className="text-zinc-400">
-                  Available: <span className="text-white font-medium">Ksh {user.balance.toLocaleString()}</span>
-                </span>
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleWithdraw} 
-              disabled={isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) < 100 || parseFloat(withdrawAmount) > user.balance}
-              className="w-full h-12 bg-white hover:bg-zinc-200 text-black font-semibold text-base transition-all"
-            >
-              {isWithdrawing ? (
-                <span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin"/> Processing...</span>
-              ) : (
-                'Confirm Withdrawal'
-              )}
-            </Button>
+      {/* STATS DASHBOARD */}
+      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <Activity className="h-5 w-5 text-neon-blue" />
+        Performance Analytics
+      </h2>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
+        
+        {/* The Conviction Score (Accuracy) */}
+        <Card className="bg-zinc-900 border-zinc-800 p-4 relative overflow-hidden group">
+          <div className={`absolute inset-0 opacity-10 transition-opacity group-hover:opacity-20 ${
+            stats.convictionScore >= 70 ? 'bg-neon-green' : stats.convictionScore >= 40 ? 'bg-yellow-500' : 'bg-rose-500'
+          }`} />
+          <div className="flex items-center gap-2 text-zinc-400 mb-2">
+            <Target className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">Conviction</span>
           </div>
-        </DialogContent>
-      </Dialog>
-    </main>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold text-white">{stats.convictionScore}%</span>
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-1">{stats.wonCount} of {stats.resolvedCount} correct</p>
+        </Card>
+
+        <Card className="bg-zinc-900 border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 mb-2">
+            <TrendingUp className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">Net Yield</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-xl font-bold ${stats.totalYield >= 0 ? 'text-neon-green' : 'text-rose-500'}`}>
+              {stats.totalYield > 0 ? '+' : ''}{formatCurrency(stats.totalYield)}
+            </span>
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-1">All-time profit/loss</p>
+        </Card>
+
+        <Card className="bg-zinc-900 border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 mb-2">
+            <History className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">Positions</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold text-white">{history.length}</span>
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-1">Total lifetime trades</p>
+        </Card>
+
+        <Card className="bg-zinc-900 border-zinc-800 p-4">
+          <div className="flex items-center gap-2 text-zinc-400 mb-2">
+            <Activity className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wider">Volume</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold text-white">{formatCurrency(stats.totalStaked)}</span>
+          </div>
+          <p className="text-[10px] text-zinc-500 mt-1">Total capital deployed</p>
+        </Card>
+
+      </div>
+
+      {/* TRADING LEDGER */}
+      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <History className="h-5 w-5 text-neon-blue" />
+        Trading Ledger
+      </h2>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        {isLoading ? (
+          <div className="p-8 text-center text-zinc-500">Loading ledger...</div>
+        ) : history.length === 0 ? (
+          <div className="p-8 text-center text-zinc-500">No trading history found. Take a position!</div>
+        ) : (
+          <div className="divide-y divide-zinc-800">
+            {history.map((trade) => (
+              <div key={trade.id} className="p-4 sm:p-5 hover:bg-zinc-800/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                
+                {/* Market Info */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                      trade.status === 'Won' ? 'bg-neon-green/10 text-neon-green border border-neon-green/20' :
+                      trade.status === 'Lost' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                      trade.status === 'Refunded' ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20' :
+                      'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+                    }`}>
+                      {trade.status}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      {new Date(trade.placed_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-medium text-white line-clamp-2">{trade.title}</h4>
+                </div>
+
+                {/* Trade Math */}
+                <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-64 shrink-0 bg-zinc-950/50 sm:bg-transparent p-3 sm:p-0 rounded-lg">
+                  <div className="text-left sm:text-right">
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-0.5">Position</p>
+                    <p className="text-sm font-semibold text-zinc-300">
+                      {trade.chosen_option === 'A' ? trade.option_a : trade.option_b}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Stake: {formatCurrency(parseFloat(trade.amount_kes))}</p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-0.5">Yield</p>
+                    <p className={`text-sm font-bold flex items-center justify-end gap-1 ${
+                      trade.status === 'Won' ? 'text-neon-green' : 
+                      trade.status === 'Lost' ? 'text-rose-500' : 
+                      'text-white'
+                    }`}>
+                      {trade.status === 'Won' && <ArrowUpRight className="h-3.5 w-3.5" />}
+                      {trade.status === 'Lost' && <ArrowDownRight className="h-3.5 w-3.5" />}
+                      {trade.status === 'Refunded' && <CircleSlash className="h-3.5 w-3.5" />}
+                      {trade.status === 'Pending' ? '--' : formatCurrency(trade.payout_kes)}
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+    </div>
   );
 }
