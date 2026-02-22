@@ -1,15 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Trophy, Medal, Target, TrendingUp, Activity, Loader2, Award } from 'lucide-react';
+import { useState, useEffect,Fragment } from 'react';
+import { Target, TrendingUp, Activity, Loader2, ChevronDown, ChevronUp, History, CircleSlash, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getLeaderboard } from '@/lib/api';
 import type { LeaderboardUser } from '@/types';
 import { toast } from 'sonner';
 
-type LeaderboardMode = 'wealth' | 'accuracy' | 'volume';
+type SortColumn = 'accuracy' | 'wealth' | 'volume';
 
 export function LeaderboardPage() {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeMode, setActiveMode] = useState<LeaderboardMode>('wealth');
+  
+  // Sorting State
+  const [sortColumn, setSortColumn] = useState<SortColumn>('accuracy');
+  const [sortDesc, setSortDesc] = useState(true);
+  
+  // Expanded Row State
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -25,182 +31,252 @@ export function LeaderboardPage() {
     fetchLeaderboard();
   }, []);
 
-  // --- DYNAMIC SORTING LOGIC ---
-  const sortedUsers = [...users].sort((a, b) => {
-    if (activeMode === 'wealth') {
-      return b.balance - a.balance;
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDesc(!sortDesc);
+    } else {
+      setSortColumn(column);
+      setSortDesc(true);
     }
-    if (activeMode === 'accuracy') {
-      // The Oracle Rule: Must have at least 3 trades to rank for accuracy!
+  };
+
+  const sortedUsers = [...users].sort((a, b) => {
+    let valA = 0;
+    let valB = 0;
+
+    if (sortColumn === 'accuracy') {
+      // The Oracle Rule: Must have 3+ trades to rank high in accuracy
       const aValid = a.totalBets >= 3;
       const bValid = b.totalBets >= 3;
+      if (aValid && !bValid) return sortDesc ? -1 : 1;
+      if (!aValid && bValid) return sortDesc ? 1 : -1;
       
-      if (aValid && !bValid) return -1;
-      if (!aValid && bValid) return 1;
-      
-      // If win rates are tied, the person with MORE trades wins the tiebreaker
-      return b.winRate - a.winRate || b.totalBets - a.totalBets;
+      valA = a.winRate;
+      valB = b.winRate;
+      // Tie-breaker: whoever has more trades
+      if (valA === valB) return b.totalBets - a.totalBets;
+    } else if (sortColumn === 'wealth') {
+      valA = a.balance;
+      valB = b.balance;
+    } else if (sortColumn === 'volume') {
+      valA = a.totalBets;
+      valB = b.totalBets;
     }
-    if (activeMode === 'volume') {
-      return b.totalBets - a.totalBets;
-    }
-    return 0;
+
+    return sortDesc ? valB - valA : valA - valB;
   });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
-      style: 'currency',
-      currency: 'KES',
-      minimumFractionDigits: 0,
+      style: 'currency', currency: 'KES', minimumFractionDigits: 0,
     }).format(amount);
   };
 
-  const topThree = sortedUsers.slice(0, 3);
-  const theRest = sortedUsers.slice(3);
-
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-5xl px-4 py-8">
       
-      {/* HEADER & TABS */}
-      <div className="flex flex-col items-center mb-10 text-center">
-        <div className="h-16 w-16 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(234,179,8,0.15)]">
-          <Trophy className="h-8 w-8 text-yellow-500" />
-        </div>
-        <h1 className="text-3xl font-bold text-white mb-2">Campus Oracles</h1>
-        <p className="text-zinc-400 max-w-lg mb-8">
-          The top forecasters on the platform. Build your reputation through accurate predictions.
-        </p>
-
-        {/* MODE TOGGLES */}
-        <div className="flex p-1 bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-md">
-          <button
-            onClick={() => setActiveMode('wealth')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
-              activeMode === 'wealth' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <TrendingUp className="h-4 w-4" /> Wealth
-          </button>
-          <button
-            onClick={() => setActiveMode('accuracy')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
-              activeMode === 'accuracy' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <Target className="h-4 w-4" /> Accuracy
-          </button>
-          <button
-            onClick={() => setActiveMode('volume')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
-              activeMode === 'volume' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <Activity className="h-4 w-4" /> Volume
-          </button>
+      {/* COMPACT HEADER */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Target className="h-6 w-6 text-neon-blue" />
+            Global Leaderboard
+          </h1>
+          <p className="text-sm text-zinc-400 mt-1">Click a header to sort. Click a trader to view their history.</p>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-500 space-y-4">
+        <div className="flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-neon-blue" />
-          <p>Compiling market data...</p>
-        </div>
-      ) : sortedUsers.length === 0 ? (
-        <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/50">
-          <Award className="h-10 w-10 text-zinc-600 mx-auto mb-3" />
-          <p className="text-zinc-400">No traders have hit the board yet.</p>
         </div>
       ) : (
-        <>
-          {/* THE PODIUM (TOP 3) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-end">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden shadow-xl overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[600px]">
             
-            {/* Rank 2 (Silver) */}
-            {topThree[1] && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-1 order-2 md:h-[90%]">
-                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-zinc-400 to-zinc-300 rounded-t-2xl opacity-50" />
-                <Medal className="h-8 w-8 text-zinc-400 mb-2" />
-                <h3 className="text-lg font-bold text-white mb-1">{topThree[1].nickname}</h3>
-                <div className="text-2xl font-black text-zinc-300 mb-4">
-                  {activeMode === 'wealth' && formatCurrency(topThree[1].balance)}
-                  {activeMode === 'accuracy' && `${topThree[1].winRate}%`}
-                  {activeMode === 'volume' && topThree[1].totalBets}
-                </div>
-                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
-                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[1].totalBets}</div>
-                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[1].winRate}%</div>
-                </div>
-              </div>
-            )}
-
-            {/* Rank 1 (Gold) */}
-            {topThree[0] && (
-              <div className="bg-zinc-900 border-2 border-yellow-500/30 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-2 order-1 shadow-[0_0_30px_rgba(234,179,8,0.1)] md:-translate-y-4">
-                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-yellow-300 rounded-t-2xl" />
-                <Trophy className="h-10 w-10 text-yellow-500 mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
-                <h3 className="text-xl font-bold text-white mb-1">{topThree[0].nickname}</h3>
-                <div className="text-3xl font-black text-yellow-500 mb-4">
-                  {activeMode === 'wealth' && formatCurrency(topThree[0].balance)}
-                  {activeMode === 'accuracy' && `${topThree[0].winRate}%`}
-                  {activeMode === 'volume' && topThree[0].totalBets}
-                </div>
-                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
-                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[0].totalBets}</div>
-                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[0].winRate}%</div>
-                </div>
-              </div>
-            )}
-
-            {/* Rank 3 (Bronze) */}
-            {topThree[2] && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-3 order-3 md:h-[80%]">
-                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-amber-700 to-amber-600 rounded-t-2xl opacity-50" />
-                <Medal className="h-8 w-8 text-amber-600 mb-2" />
-                <h3 className="text-lg font-bold text-white mb-1">{topThree[2].nickname}</h3>
-                <div className="text-2xl font-black text-amber-600 mb-4">
-                  {activeMode === 'wealth' && formatCurrency(topThree[2].balance)}
-                  {activeMode === 'accuracy' && `${topThree[2].winRate}%`}
-                  {activeMode === 'volume' && topThree[2].totalBets}
-                </div>
-                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
-                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[2].totalBets}</div>
-                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[2].winRate}%</div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* THE LIST (RANKS 4-100) */}
-          {theRest.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-              <div className="divide-y divide-zinc-800/50">
-                {theRest.map((user, index) => (
-                  <div key={user.id} className="flex items-center gap-4 p-4 hover:bg-zinc-800/30 transition-colors">
-                    <div className="w-8 text-center text-zinc-500 font-bold text-lg">
-                      #{index + 4}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-white">{user.nickname}</h4>
-                      <div className="flex gap-3 mt-1 text-[11px] text-zinc-500 uppercase tracking-wider">
-                        <span>{user.totalBets} Trades</span>
-                        <span>•</span>
-                        <span>{user.winRate}% Conviction</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-white text-lg">
-                        {activeMode === 'wealth' && formatCurrency(user.balance)}
-                        {activeMode === 'accuracy' && `${user.winRate}%`}
-                        {activeMode === 'volume' && user.totalBets}
-                      </span>
-                    </div>
+            {/* TABLE HEADER (Clickable to sort!) */}
+            <thead className="bg-zinc-950/50 text-xs uppercase tracking-wider text-zinc-500 border-b border-zinc-800">
+              <tr>
+                <th className="px-4 py-4 w-16 text-center font-semibold">Rank</th>
+                <th className="px-4 py-4 font-semibold">Trader</th>
+                
+                <th 
+                  className="px-4 py-4 font-semibold cursor-pointer hover:text-white transition-colors group"
+                  onClick={() => handleSort('accuracy')}
+                >
+                  <div className="flex items-center gap-1">
+                    <Target className={`h-3.5 w-3.5 ${sortColumn === 'accuracy' ? 'text-neon-blue' : ''}`} />
+                    Accuracy
+                    {sortColumn === 'accuracy' && (sortDesc ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}
                   </div>
-                ))}
+                </th>
+                
+                <th 
+                  className="px-4 py-4 font-semibold cursor-pointer hover:text-white transition-colors group"
+                  onClick={() => handleSort('volume')}
+                >
+                  <div className="flex items-center gap-1">
+                    <Activity className={`h-3.5 w-3.5 ${sortColumn === 'volume' ? 'text-neon-pink' : ''}`} />
+                    Trades
+                    {sortColumn === 'volume' && (sortDesc ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}
+                  </div>
+                </th>
+                
+                <th 
+                  className="px-4 py-4 font-semibold text-right cursor-pointer hover:text-white transition-colors group"
+                  onClick={() => handleSort('wealth')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <TrendingUp className={`h-3.5 w-3.5 ${sortColumn === 'wealth' ? 'text-neon-green' : ''}`} />
+                    Wealth
+                    {sortColumn === 'wealth' && (sortDesc ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />)}
+                  </div>
+                </th>
+              </tr>
+            </thead>
+
+            {/* TABLE BODY */}
+            <tbody className="divide-y divide-zinc-800/50">
+              {sortedUsers.map((user, index) => {
+                const isExpanded = expandedUserId === user.id;
+                
+                // Podium Colors
+                const rankColor = 
+                  index === 0 ? 'text-yellow-500 font-black' :
+                  index === 1 ? 'text-zinc-300 font-bold' :
+                  index === 2 ? 'text-amber-600 font-bold' :
+                  'text-zinc-600 font-medium';
+
+                // Accuracy Colors
+                const accuracyColor = 
+                  user.winRate >= 70 ? 'text-neon-green' :
+                  user.winRate >= 40 ? 'text-yellow-500' :
+                  'text-rose-500';
+
+                return (
+                  <Fragment key={user.id}>
+                    {/* MAIN ROW */}
+                    <tr 
+                      onClick={() => setExpandedUserId(isExpanded ? null : user.id)}
+                      className={`group cursor-pointer transition-colors ${isExpanded ? 'bg-zinc-800/40' : 'hover:bg-zinc-800/20'}`}
+                    >
+                      <td className={`px-4 py-4 text-center ${rankColor} text-sm`}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                      </td>
+                      
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white border border-zinc-700">
+                            {user.nickname.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-white group-hover:text-neon-blue transition-colors">
+                            {user.nickname}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className={`px-4 py-4 font-bold ${accuracyColor}`}>
+                        {user.winRate}%
+                      </td>
+
+                      <td className="px-4 py-4 text-zinc-300 font-medium">
+                        {user.totalBets}
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-bold text-white">
+                        {formatCurrency(user.balance)}
+                      </td>
+                    </tr>
+
+                    {/* EXPANDED PROFILE (PUBLIC LEDGER) */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={5} className="p-0 border-b border-zinc-800">
+                          <div className="bg-zinc-950/50 px-6 py-4 border-l-2 border-neon-blue animate-in slide-in-from-top-2 duration-200">
+                            <PublicTraderHistory email={user.email} nickname={user.nickname} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- SUB-COMPONENT: PUBLIC TRADER HISTORY ---
+// Fetches the selected user's recent bets when their row is expanded!
+function PublicTraderHistory({ email, nickname }: { email: string, nickname: string }) {
+  const [recentTrades, setRecentTrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch(`https://unistake-backend.onrender.com/api/bets?email=${email}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Only show their 3 most recent resolved/active trades to keep it clean
+          setRecentTrades(data.slice(0, 3)); 
+        }
+      } catch (err) {
+        console.error("Failed to fetch user history");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, [email]);
+
+  if (loading) return <div className="text-xs text-zinc-500 flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin"/> Loading {nickname}'s history...</div>;
+  if (recentTrades.length === 0) return <div className="text-xs text-zinc-500">No public trading history available.</div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-2">
+        <History className="h-4 w-4 text-zinc-400" />
+        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Recent Market Positions</span>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {recentTrades.map(trade => (
+          <div key={trade.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-left">
+            <div className="flex justify-between items-start mb-2">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                trade.status === 'Won' ? 'bg-neon-green/10 text-neon-green' :
+                trade.status === 'Lost' ? 'bg-rose-500/10 text-rose-500' :
+                trade.status === 'Refunded' ? 'bg-zinc-500/10 text-zinc-400' :
+                'bg-yellow-500/10 text-yellow-500'
+              }`}>
+                {trade.status}
+              </span>
+              <span className="text-[10px] text-zinc-500">{new Date(trade.placed_at).toLocaleDateString()}</span>
+            </div>
+            
+            <p className="text-xs font-medium text-white line-clamp-2 mb-2">{trade.title}</p>
+            
+            <div className="flex justify-between items-end border-t border-zinc-800 pt-2 mt-auto">
+              <div>
+                <span className="text-[9px] text-zinc-500 block">Position</span>
+                <span className="text-xs font-bold text-zinc-300">
+                  {trade.chosen_option === 'A' ? trade.option_a : trade.option_b}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-[9px] text-zinc-500 block">Stake</span>
+                <span className="text-xs font-bold text-white">
+                  KES {parseFloat(trade.amount_kes).toLocaleString()}
+                </span>
               </div>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
