@@ -1,263 +1,206 @@
 import { useState, useEffect } from 'react';
-import { 
-  Medal, 
-  Crown, 
-  Target,
-  Percent,
-  Phone,
-  Loader2
-} from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { useUser } from '@/contexts/UserContext';
+import { Trophy, Medal, Target, TrendingUp, Activity, Loader2, Award } from 'lucide-react';
+import { getLeaderboard } from '@/lib/api';
 import type { LeaderboardUser } from '@/types';
-import { getLeaderboard, maskPhoneNumber } from '@/lib/api'; 
+import { toast } from 'sonner';
+
+type LeaderboardMode = 'wealth' | 'accuracy' | 'volume';
 
 export function LeaderboardPage() {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user: currentUser } = useUser();
+  const [activeMode, setActiveMode] = useState<LeaderboardMode>('wealth');
 
   useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const data = await getLeaderboard();
+        setUsers(data);
+      } catch (error) {
+        toast.error('Failed to load leaderboard');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     fetchLeaderboard();
   }, []);
 
-  const fetchLeaderboard = async () => {
-    try {
-      setIsLoading(true);
-      const realLeaderboard = await getLeaderboard();
-      const rankedUsers = realLeaderboard.map((user, index) => ({ 
-        ...user, 
-        rank: index + 1 
-      }));
-      setUsers(rankedUsers);
-    } catch (error) {
-      toast.error('Failed to load leaderboard');
-    } finally {
-      setIsLoading(false);
+  // --- DYNAMIC SORTING LOGIC ---
+  const sortedUsers = [...users].sort((a, b) => {
+    if (activeMode === 'wealth') {
+      return b.balance - a.balance;
     }
+    if (activeMode === 'accuracy') {
+      // The Oracle Rule: Must have at least 3 trades to rank for accuracy!
+      const aValid = a.totalBets >= 3;
+      const bValid = b.totalBets >= 3;
+      
+      if (aValid && !bValid) return -1;
+      if (!aValid && bValid) return 1;
+      
+      // If win rates are tied, the person with MORE trades wins the tiebreaker
+      return b.winRate - a.winRate || b.totalBets - a.totalBets;
+    }
+    if (activeMode === 'volume') {
+      return b.totalBets - a.totalBets;
+    }
+    return 0;
+  });
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const getRankStyle = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return {
-          border: 'border-yellow-500/50',
-          bg: 'bg-gradient-to-b from-yellow-500/20 to-yellow-600/5',
-          icon: <Crown className="h-6 w-6 text-yellow-500" />,
-          badge: 'bg-yellow-500 text-black',
-          glow: 'shadow-[0_0_30px_rgba(234,179,8,0.3)]',
-        };
-      case 2:
-        return {
-          border: 'border-zinc-400/50',
-          bg: 'bg-gradient-to-b from-zinc-400/20 to-zinc-500/5',
-          icon: <Medal className="h-6 w-6 text-zinc-400" />,
-          badge: 'bg-zinc-400 text-black',
-          glow: 'shadow-[0_0_30px_rgba(161,161,170,0.3)]',
-        };
-      case 3:
-        return {
-          border: 'border-amber-600/50',
-          bg: 'bg-gradient-to-b from-amber-600/20 to-amber-700/5',
-          icon: <Medal className="h-6 w-6 text-amber-600" />,
-          badge: 'bg-amber-600 text-white',
-          glow: 'shadow-[0_0_30px_rgba(217,119,6,0.3)]',
-        };
-      default:
-        return {
-          border: 'border-zinc-800',
-          bg: 'bg-zinc-900',
-          icon: <span className="text-zinc-500 font-bold">#{rank}</span>,
-          badge: 'bg-zinc-800 text-zinc-400',
-          glow: '',
-        };
-    }
-  };
-
-  const topThree = users.slice(0, 3);
-  const currentUserRank = currentUser 
-    ? users.findIndex(u => u.email === currentUser.email) + 1 
-    : null;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-zinc-600 animate-spin" />
-      </div>
-    );
-  }
+  const topThree = sortedUsers.slice(0, 3);
+  const theRest = sortedUsers.slice(3);
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-12 pt-6 sm:pt-8">
-      <div className="container mx-auto max-w-4xl px-4">
-        
-        {/* Top 3 Podium - Now the very first thing on the page! */}
-        {topThree.length >= 3 && (
-          <div className="mb-10">
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end mb-2">
-              
-              {/* 2nd Place */}
-              <div className="flex flex-col items-center w-full">
-                <Card className={`w-full p-3 sm:p-4 ${getRankStyle(2).bg} border-2 ${getRankStyle(2).border} ${getRankStyle(2).glow}`}>
-                  <div className="flex flex-col items-center">
-                    {getRankStyle(2).icon}
-                    <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
-                      {topThree[1].nickname}
-                    </p>
-                    <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[1].wonBets || 0} Wins</p>
-                  </div>
-                </Card>
-                <div className="w-full h-16 sm:h-24 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
-                  <span className="text-xl sm:text-2xl font-bold text-zinc-500">2</span>
-                </div>
-              </div>
+    <div className="container mx-auto max-w-4xl px-4 py-8">
+      
+      {/* HEADER & TABS */}
+      <div className="flex flex-col items-center mb-10 text-center">
+        <div className="h-16 w-16 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(234,179,8,0.15)]">
+          <Trophy className="h-8 w-8 text-yellow-500" />
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">Campus Oracles</h1>
+        <p className="text-zinc-400 max-w-lg mb-8">
+          The top forecasters on the platform. Build your reputation through accurate predictions.
+        </p>
 
-              {/* 1st Place */}
-              <div className="flex flex-col items-center w-full -mt-6 z-10">
-                <Card className={`w-full p-4 sm:p-5 ${getRankStyle(1).bg} border-2 ${getRankStyle(1).border} ${getRankStyle(1).glow}`}>
-                  <div className="flex flex-col items-center">
-                    <div className="relative">
-                      {getRankStyle(1).icon}
-                      <div className="absolute -top-1 -right-1 h-3 w-3 bg-yellow-400 rounded-full animate-pulse" />
-                    </div>
-                    <p className="text-base sm:text-lg font-bold text-white mt-2 truncate w-full text-center">
-                      {topThree[0].nickname}
-                    </p>
-                    <p className="text-sm sm:text-lg font-bold text-white mt-1">{topThree[0].wonBets || 0} Wins</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Target className="h-3 w-3 text-zinc-500" />
-                      <span className="text-xs text-zinc-500">{topThree[0].winRate}% WR</span>
-                    </div>
-                  </div>
-                </Card>
-                <div className="w-full h-24 sm:h-32 bg-gradient-to-b from-yellow-500/20 to-transparent rounded-b-lg mt-1 flex items-center justify-center">
-                  <span className="text-2xl sm:text-3xl font-bold text-yellow-500">1</span>
-                </div>
-              </div>
+        {/* MODE TOGGLES */}
+        <div className="flex p-1 bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-md">
+          <button
+            onClick={() => setActiveMode('wealth')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
+              activeMode === 'wealth' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <TrendingUp className="h-4 w-4" /> Wealth
+          </button>
+          <button
+            onClick={() => setActiveMode('accuracy')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
+              activeMode === 'accuracy' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <Target className="h-4 w-4" /> Accuracy
+          </button>
+          <button
+            onClick={() => setActiveMode('volume')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-md transition-all ${
+              activeMode === 'volume' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <Activity className="h-4 w-4" /> Volume
+          </button>
+        </div>
+      </div>
 
-              {/* 3rd Place */}
-              <div className="flex flex-col items-center w-full">
-                <Card className={`w-full p-3 sm:p-4 ${getRankStyle(3).bg} border-2 ${getRankStyle(3).border} ${getRankStyle(3).glow}`}>
-                  <div className="flex flex-col items-center">
-                    {getRankStyle(3).icon}
-                    <p className="text-sm sm:text-base font-bold text-white mt-2 truncate w-full text-center">
-                      {topThree[2].nickname}
-                    </p>
-                    <p className="text-xs sm:text-sm font-bold text-white mt-1">{topThree[2].wonBets || 0} Wins</p>
-                  </div>
-                </Card>
-                <div className="w-full h-12 sm:h-16 bg-zinc-800/50 rounded-b-lg mt-1 flex items-center justify-center">
-                  <span className="text-xl sm:text-2xl font-bold text-zinc-500">3</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Full Leaderboard List */}
-        <Card className="bg-zinc-900 border-zinc-800 overflow-hidden mt-8">
-          
-          {/* UPDATED HEADER: "Your Rank" has been moved here! */}
-          <div className="px-4 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              Full Rankings 
-              <span className="text-sm font-normal text-zinc-500 hidden sm:inline-block">({users.length} Traders)</span>
-            </h2>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500 space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-neon-blue" />
+          <p>Compiling market data...</p>
+        </div>
+      ) : sortedUsers.length === 0 ? (
+        <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl bg-zinc-900/50">
+          <Award className="h-10 w-10 text-zinc-600 mx-auto mb-3" />
+          <p className="text-zinc-400">No traders have hit the board yet.</p>
+        </div>
+      ) : (
+        <>
+          {/* THE PODIUM (TOP 3) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 items-end">
             
-            {currentUserRank && currentUserRank > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-500">Your Rank:</span>
-                <Badge className="bg-neon-blue/20 text-neon-blue border border-neon-blue/30 font-bold px-2 py-0.5 text-sm">
-                  #{currentUserRank}
-                </Badge>
+            {/* Rank 2 (Silver) */}
+            {topThree[1] && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-1 order-2 md:h-[90%]">
+                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-zinc-400 to-zinc-300 rounded-t-2xl opacity-50" />
+                <Medal className="h-8 w-8 text-zinc-400 mb-2" />
+                <h3 className="text-lg font-bold text-white mb-1">{topThree[1].nickname}</h3>
+                <div className="text-2xl font-black text-zinc-300 mb-4">
+                  {activeMode === 'wealth' && formatCurrency(topThree[1].balance)}
+                  {activeMode === 'accuracy' && `${topThree[1].winRate}%`}
+                  {activeMode === 'volume' && topThree[1].totalBets}
+                </div>
+                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[1].totalBets}</div>
+                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[1].winRate}%</div>
+                </div>
+              </div>
+            )}
+
+            {/* Rank 1 (Gold) */}
+            {topThree[0] && (
+              <div className="bg-zinc-900 border-2 border-yellow-500/30 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-2 order-1 shadow-[0_0_30px_rgba(234,179,8,0.1)] md:-translate-y-4">
+                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-yellow-500 to-yellow-300 rounded-t-2xl" />
+                <Trophy className="h-10 w-10 text-yellow-500 mb-2 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+                <h3 className="text-xl font-bold text-white mb-1">{topThree[0].nickname}</h3>
+                <div className="text-3xl font-black text-yellow-500 mb-4">
+                  {activeMode === 'wealth' && formatCurrency(topThree[0].balance)}
+                  {activeMode === 'accuracy' && `${topThree[0].winRate}%`}
+                  {activeMode === 'volume' && topThree[0].totalBets}
+                </div>
+                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[0].totalBets}</div>
+                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[0].winRate}%</div>
+                </div>
+              </div>
+            )}
+
+            {/* Rank 3 (Bronze) */}
+            {topThree[2] && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 flex flex-col items-center text-center relative md:order-3 order-3 md:h-[80%]">
+                <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-amber-700 to-amber-600 rounded-t-2xl opacity-50" />
+                <Medal className="h-8 w-8 text-amber-600 mb-2" />
+                <h3 className="text-lg font-bold text-white mb-1">{topThree[2].nickname}</h3>
+                <div className="text-2xl font-black text-amber-600 mb-4">
+                  {activeMode === 'wealth' && formatCurrency(topThree[2].balance)}
+                  {activeMode === 'accuracy' && `${topThree[2].winRate}%`}
+                  {activeMode === 'volume' && topThree[2].totalBets}
+                </div>
+                <div className="w-full grid grid-cols-2 gap-2 text-[10px] uppercase tracking-wider text-zinc-500">
+                  <div className="bg-zinc-950 p-2 rounded-lg">Trades: {topThree[2].totalBets}</div>
+                  <div className="bg-zinc-950 p-2 rounded-lg">Win: {topThree[2].winRate}%</div>
+                </div>
               </div>
             )}
           </div>
-          
-          <div className="divide-y divide-zinc-800">
-            {users.map((user, index) => {
-              const style = getRankStyle(user.rank || index + 1);
-              const isCurrentUser = currentUser && user.email === currentUser.email;
-              return (
-                <div 
-                  key={user.id} 
-                  className={`flex items-center gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-zinc-800/50 transition-colors ${
-                    isCurrentUser ? 'bg-neon-blue/5' : ''
-                  }`}
-                >
-                  {/* Rank */}
-                  <div className="flex-shrink-0 w-8 sm:w-10">
-                    <Badge className={`${style.badge} font-bold text-xs`}>
-                      #{user.rank}
-                    </Badge>
-                  </div>
 
-                  {/* Avatar/Icon */}
-                  <div className="flex-shrink-0 hidden sm:block">
-                    {user.rank && user.rank <= 3 ? (
-                      style.icon
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                        <span className="text-sm font-medium text-zinc-400">
-                          {user.nickname.charAt(0).toUpperCase()}
-                        </span>
+          {/* THE LIST (RANKS 4-100) */}
+          {theRest.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div className="divide-y divide-zinc-800/50">
+                {theRest.map((user, index) => (
+                  <div key={user.id} className="flex items-center gap-4 p-4 hover:bg-zinc-800/30 transition-colors">
+                    <div className="w-8 text-center text-zinc-500 font-bold text-lg">
+                      #{index + 4}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-white">{user.nickname}</h4>
+                      <div className="flex gap-3 mt-1 text-[11px] text-zinc-500 uppercase tracking-wider">
+                        <span>{user.totalBets} Trades</span>
+                        <span>•</span>
+                        <span>{user.winRate}% Conviction</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <p className={`font-medium truncate text-sm sm:text-base ${isCurrentUser ? 'text-neon-blue' : 'text-white'}`}>
-                        {user.nickname}
-                      </p>
-                      {isCurrentUser && (
-                        <Badge className="bg-neon-blue/20 text-neon-blue text-[10px] px-1.5 py-0 flex-shrink-0">
-                          You
-                        </Badge>
-                      )}
                     </div>
-                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-zinc-500 mt-1">
-                      <span className="flex items-center gap-1 truncate">
-                        <Phone className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{maskPhoneNumber(user.phoneNumber)}</span>
-                      </span>
-                      <span className="flex items-center gap-1 flex-shrink-0 hidden sm:flex">
-                        <Target className="h-3 w-3" />
-                        {user.totalBets} bets placed
+                    <div className="text-right">
+                      <span className="font-bold text-white text-lg">
+                        {activeMode === 'wealth' && formatCurrency(user.balance)}
+                        {activeMode === 'accuracy' && `${user.winRate}%`}
+                        {activeMode === 'volume' && user.totalBets}
                       </span>
                     </div>
                   </div>
-
-                  {/* Stats */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-semibold text-white text-sm sm:text-base truncate flex items-center justify-end gap-1.5">
-                      {user.wonBets || 0} <span className="text-xs text-zinc-400 font-normal">Wins</span>
-                    </p>
-                    <div className="flex items-center justify-end gap-1 text-xs mt-1">
-                      <Percent className="h-3 w-3 text-zinc-500" />
-                      <span className={user.winRate >= 50 ? 'text-neon-green' : 'text-zinc-500'}>
-                        {user.winRate}% WR
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        {/* Motivational Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-zinc-500">
-            {currentUserRank && currentUserRank > 10 
-              ? "Keep analyzing markets to climb the ranks!" 
-              : "You're among the top analysts!"}
-          </p>
-        </div>
-      </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
