@@ -2,7 +2,8 @@ import type {
   Market, 
   Bet, 
   LeaderboardUser, 
-  CreateMarketRequest
+  CreateMarketRequest,
+  Thesis
 } from '@/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -74,6 +75,18 @@ export async function resolveMarket(data: any): Promise<any> {
       winning_option: data.winner
     }),
   });
+}
+
+export async function getTheses(marketId: string): Promise<Thesis[]> {
+  const raw = await fetcher<any[]>(`/api/theses/${marketId}`, { method: 'GET' });
+  return raw.map(t => ({
+    id: t.id.toString(),
+    nickname: t.nickname,
+    content: t.content,
+    chosenOption: t.chosen_option,
+    amount: parseFloat(t.amount_kes),
+    createdAt: t.created_at
+  }));
 }
 
 // ==================== TRADE APIs (UPDATED FOR THESIS) ====================

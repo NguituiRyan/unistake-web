@@ -102,3 +102,12 @@ export interface UpdateNicknameRequest {
   email: string;
   nickname: string;
 }
+
+export interface Thesis {
+  id: string;
+  nickname: string;
+  content: string;
+  chosenOption: 'A' | 'B';
+  amount: number;
+  createdAt: string;
+}
