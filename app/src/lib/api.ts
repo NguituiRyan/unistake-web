@@ -55,15 +55,15 @@ export async function getLeaderboard(): Promise<LeaderboardUser[]> {
 }
 
 export async function createMarket(email: string, data: any): Promise<any> {
-  const response = await fetch('https://unistake-backend.onrender.com/api/markets', { // Make sure this URL is correct!
+  const response = await fetch('https://unistake-backend.onrender.com/api/markets', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      email: email,
+      email: email,            // <-- THIS IS WHAT THE BACKEND IS BEGGING FOR
       title: data.title,
-      option_a: data.optionA,
+      option_a: data.optionA,  // <-- Make sure these have underscores!
       option_b: data.optionB,
       category: data.category,
       end_date: data.endDate
